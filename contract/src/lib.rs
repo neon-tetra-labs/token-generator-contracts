@@ -8,7 +8,8 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, UnorderedMap};
 use near_sdk::json_types::U128;
 use near_sdk::{
-    assert_one_yocto, env, log, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue,
+    assert_one_yocto, env, log, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault,
+    PromiseOrValue,
 };
 use nft_fractionalizer::{NftFractionalizer, NftFractionalizerFns};
 
@@ -25,6 +26,13 @@ impl NewInfo for AccountInfo {
     fn default_from_account_id(account_id: AccountId) -> Self {
         Self { internal_balance: UnorderedMap::new(format!("{}-bal", account_id).as_bytes()) }
     }
+}
+
+#[derive(BorshDeserialize, BorshSerialize, BorshStorageKey)]
+enum StorageKey {
+    MultiTokenOwner,
+    MultiTokenMetadata,
+    MultiTokenSupply,
 }
 
 impl AccountInfoTrait for AccountInfo {}
@@ -49,12 +57,18 @@ impl Contract {
     /// Initializes the contract with the given total supply owned by the given `owner_id` with
     /// the given fungible token metadata.
     #[init]
-    pub fn new() -> Self {
+    pub fn new(owner_id: AccountId, treasury: AccountId, nft_mint_fee: U128) -> Self {
         Contract {
             accounts: Accounts::new(),
-            mt: todo!(),
-            owner_id: todo!(),
-            nft_fractionalizer: todo!(),
+            mt: MultiToken::new(
+                StorageKey::MultiTokenOwner,
+                owner_id.clone(),
+                Some(StorageKey::MultiTokenMetadata),
+                StorageKey::MultiTokenSupply,
+            ),
+            owner_id,
+            nft_fractionalizer: NftFractionalizer::new(nft_mint_fee.into()),
+            treasury_id: treasury,
         }
     }
 }
@@ -69,7 +83,7 @@ impl NftFractionalizerFns for Contract {
         mt_owner: Option<AccountId>,
         token_metadata: multi_token_standard::metadata::MultiTokenMetadata,
     ) {
-        todo!()
+        self.nft_fractionalize_internal(nfts, mt_id, amount.into(), mt_owner, token_metadata);
     }
 
     fn nft_fractionalize_unwrap(&mut self, mt_id: types::MTTokenId, release_to: Option<AccountId>) {
@@ -80,6 +94,10 @@ impl NftFractionalizerFns for Contract {
         &self,
         mt_id: types::MTTokenId,
     ) -> Vec<multi_token_standard::Token> {
+        todo!()
+    }
+
+    fn nft_fractionalize_update_mint_fee(&mut self, update: U128) {
         todo!()
     }
 }

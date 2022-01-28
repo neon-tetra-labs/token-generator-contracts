@@ -30,14 +30,7 @@ impl Contract {
         amount: Option<u128>,
         token_owner_id: AccountId,
         token_metadata: MultiTokenMetadata,
-        mint_fee_amount: Option<u128>,
     ) {
-        if let Some(fee) = mint_fee_amount {
-            // Transfer the mint fee
-            self.transfer_fee(fee, &self.treasury_id);
-        }
-
-        let initial_storage_usage = env::storage_usage();
 
         // Every token must have a token type and every NFT type cannot be re-minted
         match self.mt.token_type_index.get(&token_id) {
@@ -96,13 +89,11 @@ impl Contract {
             .token_metadata_by_id
             .as_mut()
             .and_then(|by_id| by_id.insert(&token_id, &token_metadata));
-        // Return any extra attached deposit not used for storage
-        self.refund_deposit(env::storage_usage() - initial_storage_usage, mint_fee_amount);
     }
 
     /// Taken from [multi-token-standard-impl/examples/multi-token/mt](https://github.com/shipsgold/multi-token-standard-impl/blob/ec874d2e010908160f6c73555bde119943b96736/examples/multi-token/mt/src/lib.rs#L51)
     /// with modifications to allow for a "keep" amount
-    fn refund_deposit(&self, storage_used: u64, fee_amount: Option<Balance>) {
+    pub(crate) fn check_storage_deposit(&self, storage_used: u64, fee_amount: Option<Balance>) {
         let required_cost =
             env::storage_byte_cost() * Balance::from(storage_used) + fee_amount.unwrap_or(0);
 

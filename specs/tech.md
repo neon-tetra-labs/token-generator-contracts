@@ -20,9 +20,6 @@ struct NftFractionalizer {
 
 struct Contract {
 	accounts: NearAccounts<AccountInfo>,
-	mt: MultiToken,
-	owner_id: AccountId,
-	nft_fractionalizer: NftFractionalizer
 }
 ```
 
@@ -31,11 +28,8 @@ struct Contract {
 #### NFT fractionalization
 
 ```rust
-// Mints the new token
-// Make sure to check the mt does not already exist (also, should we ever allow duplicate names? (like if 1 is deleted later?? Me thinks not)
 fn nft_fractionalize(nfts: Vec<TokenId>, mt_id: TokenId, amount: U128, mt_owner: Option<AccountId>, token_metadata: MultiTokenMetadata);
 
-// Deletes the mt and releases the nfts. 
 fn nft_defractionalize(mt_id: TokenId, release_nft_to: Option<AccountId>);
 ```
 

@@ -4,7 +4,9 @@ use near_internal_balances_plugin::{SudoInternalBalanceHandlers, TokenId};
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
-    env, AccountId,
+    env,
+    json_types::U128,
+    AccountId,
 };
 
 use crate::{
@@ -12,9 +14,18 @@ use crate::{
     Contract,
 };
 
-#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct NftInfo {
+    nfts: Vec<TokenId>,
+    /// Set to true after unwrapping an NFT. This is a permanent action and marks the token as
+    /// 'deleted'
+    unwrapped: bool,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct NftFractionalizer {
-    mt_to_nfts: UnorderedMap<MTTokenId, Vec<TokenId>>,
+    // TODO: add one field for
+    mt_to_nfts: UnorderedMap<MTTokenId, NftInfo>,
     mint_fee: u128,
 }
 
@@ -38,10 +49,26 @@ pub trait NftFractionalizerFns {
     fn nft_fractionalize_get_underlying(&self, mt_id: MTTokenId) -> Vec<Token>;
 }
 
+impl NftFractionalizer {
+    pub(crate) fn new(mint_fee: u128) -> Self {
+        Self { mt_to_nfts: UnorderedMap::new("nft-f".as_bytes()), mint_fee }
+    }
+}
+
 impl Contract {
+    fn insert_mt(&mut self, mt: &MTTokenId, nfts: Vec<TokenId>) {
+        match self.nft_fractionalizer.mt_to_nfts.get(mt) {
+            Some(_) => panic!("Should not get here, but only new 'mt's can be added"),
+            None => {
+                self.nft_fractionalizer.mt_to_nfts.insert(mt, &NftInfo { nfts, unwrapped: false });
+                self.check_storage_deposit(storage_used, fee_amount)
+            }
+        }
+    }
+
     /// Mints the new token
     /// * `mt_id`: The id of the new token. This id must be new and cannot have existed previously on this contract
-    fn nft_fractionalize_internal(
+    pub(crate) fn nft_fractionalize_internal(
         &mut self,
         nfts: Vec<TokenId>,
         mt_id: MTTokenId,
@@ -49,6 +76,7 @@ impl Contract {
         mt_owner: Option<AccountId>,
         token_metadata: MultiTokenMetadata,
     ) {
+        let initial_storage_usage = env::storage_usage();
         let minter = env::predecessor_account_id();
 
         // Subtract from teh user's balances
@@ -57,12 +85,21 @@ impl Contract {
             self.internal_balance_subtract(&minter, &token, 1);
         }
 
+        // create the mt
         self.mint_mt(
             mt_id,
             MTTokenType::Ft,
             Some(amount),
-            env::current_account_id(),
+            mt_owner.unwrap_or(minter),
             token_metadata,
+        );
+
+        // Insert the mt into local data
+        self.insert_mt(&mt_id, nfts);
+
+        // Return any extra attached deposit not used for storage
+        self.check_storage_deposit(
+            env::storage_usage() - initial_storage_usage,
             Some(self.nft_fractionalizer.mint_fee),
         );
     }
