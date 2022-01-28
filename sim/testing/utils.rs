@@ -1,9 +1,7 @@
 use std::str::FromStr;
 
-use dummy::ContractContract as DummyContract;
-use ft::ContractContract as FTContract;
-use multi_token::ContractContract as MTContract;
-use multi_token_standard::TokenType;
+use contract::ContractContract;
+use multi_token_standard::metadata::MultiTokenMetadata;
 use near_sdk::serde_json::json;
 use near_sdk::{json_types::U128, AccountId};
 use near_sdk_sim::{
@@ -14,25 +12,53 @@ use nft::{ContractContract as NFTContract, DEFAULT_META};
 
 // Load in contract bytes at runtime
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
-    DUMMY_BYTES => "res/dummy.wasm",
-    FT_BYTES => "res/ft.wasm",
+    CONTRACT_BYTES => "res/contract.wasm",
     NFT_BYTES => "res/nft.wasm",
-    MT_BYTES => "res/multi_token.wasm",
 }
 
-pub const DUMMY_ID: &str = "dummy";
-pub const FT_ID: &str = "ft";
+pub const CONTRACT_ID: &str = "dummy";
 pub const NFT_ID: &str = "nft";
-pub const NFT_TOKEN_ID: &str = "nft1";
-pub const MT_ID: &str = "mt";
 
-pub const MT_NFT_ID: &str = "MT-nft";
-pub const MT_FT_ID: &str = "MT-ft";
+pub fn get_default_metadata() -> MultiTokenMetadata {
+    multi_token_standard::metadata::MultiTokenMetadata {
+        spec: "aa".to_string(),   // required, essentially a version like "mt-1.0.0"
+        name: "aa".to_string(),   // required, ex. "Mosaics"
+        symbol: "aa".to_string(), // required, ex. "MOSIAC"
+        icon: None,               // Data URL
+        base_uri: None, // Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs
+        decimals: Some(12), // precision decimals for tokens that need this information
+        reference: None, // URL to a JSON file with more info
+        reference_hash: None, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
+        title: None,          // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
+        description: None,    // free-form description
+        media: None, // URL to associated media, preferably to decentralized, content-addressed storage
+        media_hash: None, // Base64-encoded sha256 hash of content referenced by the `media` field. Required if `media` is included.
+        copies: None, // number of copies of this set of metadata in existence when token was minted.
+        issued_at: None, // ISO 8601 datetime when token was issued or minted
+        expires_at: None, // ISO 8601 datetime when token expires
+        starts_at: None, // ISO 8601 datetime when token starts being valid
+        updated_at: None, // ISO 8601 datetime when token was last updated
+        extra: None,  // anything extra the NFT wants to store on-chain. Can be stringified JSON.
+    }
+}
 
-// Register the given `user` with FT contract
-pub fn register_user(user: &near_sdk_sim::UserAccount, is_root: bool) {
+pub fn register_user_with_mt(
+    user: UserAccount,
+    contract: ContractAccount<ContractContract>,
+    mt_ids: Vec<String>,
+) {
+    call!(
+        user,
+        contract.storage_deposit(mt_ids, None, None),
+        deposit = near_sdk::env::storage_byte_cost() * 1_000
+    )
+    .assert_success();
+}
+
+// Register the given `user` with NFT contract and the contract
+pub fn register_user(user: &near_sdk_sim::UserAccount) {
     user.call(
-        AccountId::from_str(DUMMY_ID).unwrap(),
+        AccountId::from_str(CONTRACT_ID).unwrap(),
         "accounts_storage_deposit",
         &json!({
             "registration_only": false,
@@ -40,90 +66,29 @@ pub fn register_user(user: &near_sdk_sim::UserAccount, is_root: bool) {
         .to_string()
         .into_bytes(),
         near_sdk_sim::DEFAULT_GAS / 2,
-        near_sdk::env::storage_byte_cost() * 1_000,
+        near_sdk::env::storage_byte_cost() * 2_000,
     );
-
-    if !is_root {
-        user.call(
-            AccountId::from_str(MT_ID).unwrap(),
-            "storage_deposit",
-            &json!({
-                "account_id": user.account_id(),
-                "token_ids": vec![MT_NFT_ID.to_string(), MT_FT_ID.to_string()],
-                "registration_only": false,
-            })
-            .to_string()
-            .into_bytes(),
-            near_sdk_sim::DEFAULT_GAS / 2,
-            near_sdk::env::storage_byte_cost() * 2_000,
-        )
-        .assert_success();
-    }
-
-    user.call(
-        AccountId::from_str(FT_ID).unwrap(),
-        "storage_deposit",
-        &json!({
-            "account_id": user.account_id(),
-            "registration_only": false,
-        })
-        .to_string()
-        .into_bytes(),
-        near_sdk_sim::DEFAULT_GAS / 2,
-        near_sdk::env::storage_byte_cost() * 125, // attached deposit
-    )
-    .assert_success();
 }
 
 pub fn init_with_macros(
-    ft_total_supply: u128,
-) -> (
-    UserAccount,
-    ContractAccount<DummyContract>,
-    ContractAccount<FTContract>,
-    ContractAccount<NFTContract>,
-    ContractAccount<MTContract>,
-    UserAccount,
-) {
+    nfts_to_mint: Vec<String>,
+    nft_mint_fee: u128,
+) -> (UserAccount, ContractAccount<ContractContract>, ContractAccount<NFTContract>, UserAccount) {
     let root = init_simulator(None);
     // uses default values for deposit and gas
-    let dummy = deploy!(
+    let contract = deploy!(
         // Contract Proxy
-        contract: DummyContract,
+        contract: ContractContract,
         // Contract account id
-        contract_id: DUMMY_ID,
+        contract_id: CONTRACT_ID,
         // Bytes of contract
-        bytes: &DUMMY_BYTES,
+        bytes: &CONTRACT_BYTES,
         // User deploying the contract,
         signer_account: root,
         // init method
-        init_method: new()
+        init_method: new(root.account_id(), root.account_id(), U128::from(nft_mint_fee))
     );
 
-    let mt = deploy!(
-        // Contract Proxy
-        contract: MTContract,
-        // Contract account id
-        contract_id: MT_ID,
-        // Bytes of contract
-        bytes: &MT_BYTES,
-        // User deploying the contract,
-        signer_account: root,
-        // init method
-        init_method: new(root.account_id())
-    );
-    let ft = deploy!(
-        // Contract Proxy
-        contract: FTContract,
-        // Contract account id
-        contract_id: FT_ID,
-        // Bytes of contract
-        bytes: &FT_BYTES,
-        // User deploying the contract,
-        signer_account: root,
-        // init method
-        init_method: new_default_meta(root.account_id(), ft_total_supply.into())
-    );
     let nft = deploy!(
         // Contract Proxy
         contract: NFTContract,
@@ -139,81 +104,17 @@ pub fn init_with_macros(
 
     let alice = root.create_user(AccountId::from_str("alice").unwrap(), to_yocto("100"));
 
-    // Create the mt ft
-    call!(
-        root,
-        mt.mint(
-            MT_FT_ID.to_string(),
-            TokenType::Ft,
-            Some(ft_total_supply.into()),
-            root.account_id(),
-            None
-        ),
-        deposit = near_sdk::env::storage_byte_cost() * 1_000
-    )
-    .assert_success();
-    // Create the mt nft
-    call!(
-        root,
-        mt.mint(MT_NFT_ID.to_string(), TokenType::Nft, None, root.account_id(), None),
-        deposit = near_sdk::env::storage_byte_cost() * 1_000
-    )
-    .assert_success();
+    for nft_id in nfts_to_mint {
+        call!(
+            root,
+            nft.nft_mint(nft_id, root.account_id(), DEFAULT_META),
+            deposit = near_sdk::env::storage_byte_cost() * 1_000
+        )
+        .assert_success();
+    }
 
-    // Create the mt ft
-    call!(
-        root,
-        mt.mint(
-            MT_FT_ID.to_string(),
-            TokenType::Ft,
-            Some(ft_total_supply.into()),
-            root.account_id(),
-            None
-        ),
-        deposit = near_sdk::env::storage_byte_cost() * 1_000
-    )
-    .assert_success();
+    register_user(&root);
+    register_user(&alice);
 
-    call!(
-        root,
-        nft.nft_mint(NFT_TOKEN_ID.to_string(), root.account_id(), DEFAULT_META),
-        deposit = near_sdk::env::storage_byte_cost() * 1_000
-    )
-    .assert_success();
-
-    register_user(&root, true);
-    register_user(&alice, false);
-
-    root.call(
-        AccountId::from_str(FT_ID).unwrap(),
-        "storage_deposit",
-        &json!({
-            "account_id": dummy.account_id()
-        })
-        .to_string()
-        .into_bytes(),
-        near_sdk_sim::DEFAULT_GAS / 2,
-        near_sdk::env::storage_byte_cost() * 125, // attached deposit
-    )
-    .assert_success();
-
-    // Register the dummy contract with MT
-    root.call(
-        AccountId::from_str(MT_ID).unwrap(),
-        "storage_deposit",
-        &json!({
-                "account_id": dummy.account_id(),
-                "token_ids": vec![MT_NFT_ID.to_string(), MT_FT_ID.to_string()],
-                "registration_only": false,
-        })
-        .to_string()
-        .into_bytes(),
-        near_sdk_sim::DEFAULT_GAS / 2,
-        near_sdk::env::storage_byte_cost() * 325, // attached deposit
-    )
-    .assert_success();
-
-    // Mint an NFT
-
-    (root, dummy, ft, nft, mt, alice)
+    (root, contract, nft, alice)
 }

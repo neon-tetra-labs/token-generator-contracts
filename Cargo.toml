@@ -13,7 +13,7 @@ near-contract-standards = "4.0.0-pre.2"
 contract = { path = "./contract" }
 nft = { path = "./nft" }
 # multi-token = { path = "../multi-token-standard-impl/examples/multi-token/mt" }
-# multi-token-standard = { path = "../multi-token-standard-impl/multi_token" }
+multi-token-standard = { path = "./multi-token-standard-impl/multi_token" }
 near-internal-balances-plugin = { path = "../../near-standards/core/near-internal-balances-plugin" }
 near-account = { path = "../../near-standards/core/near-account" }
 

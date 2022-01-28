@@ -2,15 +2,12 @@ use multi_token_standard::{impl_multi_token_core, impl_multi_token_storage, Mult
 use near_account::{AccountDeposits, AccountInfoTrait, Accounts, NearAccounts, NewInfo};
 use near_internal_balances_plugin::impl_near_balance_plugin;
 
-use near_contract_standards::storage_management::StorageManagement;
+use near_contract_standards::storage_management::StorageManagement as _StorageManagement;
 use near_internal_balances_plugin::token_id::TokenId;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{
-    assert_one_yocto, env, log, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault,
-    PromiseOrValue,
-};
+use near_sdk::{near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, PromiseOrValue};
 use nft_fractionalizer::{NftFractionalizer, NftFractionalizerFns};
 
 pub mod nft_fractionalizer;
@@ -75,6 +72,8 @@ impl Contract {
 
 #[near_bindgen]
 impl NftFractionalizerFns for Contract {
+
+    #[payable]
     fn nft_fractionalize(
         &mut self,
         nfts: Vec<TokenId>,

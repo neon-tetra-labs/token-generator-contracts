@@ -61,7 +61,6 @@ impl Contract {
             Some(_) => panic!("Should not get here, but only new 'mt's can be added"),
             None => {
                 self.nft_fractionalizer.mt_to_nfts.insert(mt, &NftInfo { nfts, unwrapped: false });
-                self.check_storage_deposit(storage_used, fee_amount)
             }
         }
     }
@@ -80,14 +79,14 @@ impl Contract {
         let minter = env::predecessor_account_id();
 
         // Subtract from teh user's balances
-        for token in nfts {
-            Self::assert_nft_type(&token);
+        for token in &nfts {
+            Self::assert_nft_type(token);
             self.internal_balance_subtract(&minter, &token, 1);
         }
 
         // create the mt
         self.mint_mt(
-            mt_id,
+            mt_id.clone(),
             MTTokenType::Ft,
             Some(amount),
             mt_owner.unwrap_or(minter),
