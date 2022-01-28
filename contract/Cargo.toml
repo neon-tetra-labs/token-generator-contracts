@@ -1,0 +1,16 @@
+[package]
+name = "contract"
+version = "1.0.0"
+authors = ["Atilla Not A Hun - Neon Tetra LLC"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-account = { path = "../../../near-standards/core/near-account" }
+near-internal-balances-plugin = { path = "../../../near-standards/core/near-internal-balances-plugin" }
+near-sdk = "4.0.0-pre.2"
+near-contract-standards = "4.0.0-pre.2"
+
+multi-token-standard = { path = "../multi-token-standard-impl/multi_token" }

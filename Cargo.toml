@@ -1,0 +1,36 @@
+[package]
+name = "fungible-token-wrapper"
+version = "0.0.1"
+authors = ["Near Inc <hello@near.org>"]
+edition = "2018"
+
+[dev-dependencies]
+near-sdk-sim = "4.0.0-pre.2"
+near-sdk = "4.0.0-pre.2"
+near-contract-standards = "4.0.0-pre.2"
+
+# remember to include a line for each contract
+contract = { path = "./contract" }
+nft = { path = "./nft" }
+# multi-token = { path = "../multi-token-standard-impl/examples/multi-token/mt" }
+# multi-token-standard = { path = "../multi-token-standard-impl/multi_token" }
+near-internal-balances-plugin = { path = "../../near-standards/core/near-internal-balances-plugin" }
+near-account = { path = "../../near-standards/core/near-account" }
+
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
+[[bin]]
+name = "test"
+path = "sim/main.rs"
+
+[workspace]
+members = ["contract"]
+exclude = ["multi-token-standard-impl"]
