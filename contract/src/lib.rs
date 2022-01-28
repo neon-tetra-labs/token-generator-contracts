@@ -1,3 +1,4 @@
+use multi_token_standard::{impl_multi_token_core, impl_multi_token_storage, MultiToken};
 use near_account::{AccountDeposits, AccountInfoTrait, Accounts, NearAccounts, NewInfo};
 use near_internal_balances_plugin::impl_near_balance_plugin;
 
@@ -9,8 +10,11 @@ use near_sdk::json_types::U128;
 use near_sdk::{
     assert_one_yocto, env, log, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue,
 };
+use nft_fractionalizer::{NftFractionalizer, NftFractionalizerFns};
 
 pub mod nft_fractionalizer;
+pub mod types;
+mod utils;
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AccountInfo {
@@ -19,10 +23,7 @@ pub struct AccountInfo {
 
 impl NewInfo for AccountInfo {
     fn default_from_account_id(account_id: AccountId) -> Self {
-        Self {
-            message: "".to_string(),
-            internal_balance: UnorderedMap::new(format!("{}-bal", account_id).as_bytes()),
-        }
+        Self { internal_balance: UnorderedMap::new(format!("{}-bal", account_id).as_bytes()) }
     }
 }
 
@@ -32,9 +33,16 @@ impl AccountInfoTrait for AccountInfo {}
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault, NearAccounts)]
 pub struct Contract {
     pub accounts: Accounts<AccountInfo>,
+    pub mt: MultiToken,
+    pub owner_id: AccountId,
+    pub treasury_id: AccountId,
+    pub nft_fractionalizer: NftFractionalizer,
 }
 
+// Implement functionality for internal balances and multi tokens
 impl_near_balance_plugin!(Contract, accounts, AccountInfo, internal_balance);
+impl_multi_token_core!(Contract, mt);
+impl_multi_token_storage!(Contract, mt);
 
 #[near_bindgen]
 impl Contract {
@@ -42,20 +50,36 @@ impl Contract {
     /// the given fungible token metadata.
     #[init]
     pub fn new() -> Self {
-        Contract { accounts: Accounts::new() }
+        Contract {
+            accounts: Accounts::new(),
+            mt: todo!(),
+            owner_id: todo!(),
+            nft_fractionalizer: todo!(),
+        }
+    }
+}
+
+#[near_bindgen]
+impl NftFractionalizerFns for Contract {
+    fn nft_fractionalize(
+        &mut self,
+        nfts: Vec<TokenId>,
+        mt_id: types::MTTokenId,
+        amount: U128,
+        mt_owner: Option<AccountId>,
+        token_metadata: multi_token_standard::metadata::MultiTokenMetadata,
+    ) {
+        todo!()
     }
 
-    #[payable]
-    pub fn write_message(&mut self, set_own_message: String) {
-        assert_one_yocto();
-        let caller = env::predecessor_account_id();
-        let account = &mut self.accounts.get_account_checked(&caller);
-        account.info.message = set_own_message;
-        self.accounts.insert_account_check_storage(&caller, account);
+    fn nft_fractionalize_unwrap(&mut self, mt_id: types::MTTokenId, release_to: Option<AccountId>) {
+        todo!()
     }
 
-    pub fn get_message(&self, account_id: AccountId) -> String {
-        let account = self.accounts.get_account(&account_id.into());
-        account.map(|a| a.info.message).unwrap_or("".to_string())
+    fn nft_fractionalize_get_underlying(
+        &self,
+        mt_id: types::MTTokenId,
+    ) -> Vec<multi_token_standard::Token> {
+        todo!()
     }
 }
