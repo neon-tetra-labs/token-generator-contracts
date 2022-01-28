@@ -76,3 +76,14 @@ fn simulate_simple_fractionalization() {
 
     // TODO: check bals after unwrapping
 }
+
+#[test]
+#[should_panic]
+fn simulate_fractionalize_not_enough_attached() {
+    todo!()
+}
+
+#[test]
+fn simulate_fractionalize_too_much_attached_and_returns() {
+    todo!()
+}
