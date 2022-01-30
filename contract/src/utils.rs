@@ -1,11 +1,21 @@
 use multi_token_standard::{metadata::MultiTokenMetadata, TokenType};
 use near_sdk::{env, require, AccountId, Balance, Promise};
+use uint::construct_uint;
+
 
 use crate::{
     types::{MTTokenId, MTTokenType},
     Contract,
 };
 
+construct_uint! {
+    /// 256-bit unsigned integer.
+    pub struct U256(4);
+}
+
+pub(crate) const FEE_DENOMINATOR: u128 = 1_000_000_000u128;
+
+/// Fee/ near transfer handling
 impl Contract {
     pub(crate) fn transfer_fee(&mut self, amount: Balance, to: &AccountId) {
         assert!(
@@ -21,6 +31,13 @@ impl Contract {
         self.accounts.insert_account_check_storage(&to, &mut to_account);
     }
 
+    pub(crate) fn calculate_fee(amount: Balance, fee_numerator: u128) -> Balance {
+        let ret = U256::from(amount) * U256::from(fee_numerator) / U256::from(FEE_DENOMINATOR);
+        ret.as_u128()
+    }
+}
+
+impl Contract {
     /// Taken from [multi-token-standard-impl/examples/multi-token/mt](https://github.com/shipsgold/multi-token-standard-impl/blob/ec874d2e010908160f6c73555bde119943b96736/examples/multi-token/mt/src/lib.rs#L66)
     /// slightly modified to allow for fee collections
     pub(crate) fn mint_mt(
@@ -31,7 +48,6 @@ impl Contract {
         token_owner_id: AccountId,
         token_metadata: MultiTokenMetadata,
     ) {
-
         // Every token must have a token type and every NFT type cannot be re-minted
         match self.mt.token_type_index.get(&token_id) {
             Some(MTTokenType::Ft) => {

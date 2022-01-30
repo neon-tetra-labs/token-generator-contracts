@@ -14,3 +14,4 @@ near-sdk = "4.0.0-pre.2"
 near-contract-standards = "4.0.0-pre.2"
 
 multi-token-standard = { path = "../multi-token-standard-impl/multi_token" }
+uint = "0.9.2"

@@ -58,7 +58,9 @@ fn simulate_simple_fractionalization() {
             mt_id.clone(),
             U128::from(supply),
             None,
-            get_default_metadata()
+            get_default_metadata(),
+            None,
+            None
         ),
         deposit = NFT_MINT_FEE + near_sdk::env::storage_byte_cost() * 1_000
     )
@@ -74,7 +76,21 @@ fn simulate_simple_fractionalization() {
         assert_eq!(bal.0, 0);
     }
 
-    // TODO: check bals after unwrapping
+    call!(root, dummy.nft_fractionalize_unwrap(mt_id.clone(), None), deposit = 1).assert_success();
+    for nft_tok in &nfts_tok_ids {
+        let bal: U128 =
+            view!(dummy.internal_balance_get_balance(root.account_id(), nft_tok.clone()))
+                .unwrap_json();
+        assert_eq!(bal.0, 1);
+    }
+    let bal_post_unwrap: U128 =
+        view!(dummy.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
+    assert_eq!(bal_post_unwrap.0, 0);
+}
+
+#[test]
+fn simulate_creating_sale() {
+    
 }
 
 #[test]

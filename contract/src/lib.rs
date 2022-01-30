@@ -9,8 +9,10 @@ use near_sdk::collections::{LazyOption, UnorderedMap};
 use near_sdk::json_types::U128;
 use near_sdk::{near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, PromiseOrValue};
 use nft_fractionalizer::{NftFractionalizer, NftFractionalizerFns};
+use sales::{SaleOptions, Sales};
 
 pub mod nft_fractionalizer;
+pub mod sales;
 pub mod types;
 mod utils;
 
@@ -42,6 +44,7 @@ pub struct Contract {
     pub owner_id: AccountId,
     pub treasury_id: AccountId,
     pub nft_fractionalizer: NftFractionalizer,
+    pub sales: Sales,
 }
 
 // Implement functionality for internal balances and multi tokens
@@ -63,6 +66,7 @@ impl Contract {
                 Some(StorageKey::MultiTokenMetadata),
                 StorageKey::MultiTokenSupply,
             ),
+            sales: Sales::new(),
             owner_id,
             nft_fractionalizer: NftFractionalizer::new(nft_mint_fee.into()),
             treasury_id: treasury,
@@ -72,7 +76,6 @@ impl Contract {
 
 #[near_bindgen]
 impl NftFractionalizerFns for Contract {
-
     #[payable]
     fn nft_fractionalize(
         &mut self,
@@ -81,12 +84,23 @@ impl NftFractionalizerFns for Contract {
         amount: U128,
         mt_owner: Option<AccountId>,
         token_metadata: multi_token_standard::metadata::MultiTokenMetadata,
+        sale_amount: Option<Balance>,
+        sale_price_per_whole: Option<Balance>,
     ) {
-        self.nft_fractionalize_internal(nfts, mt_id, amount.into(), mt_owner, token_metadata);
+        self.nft_fractionalize_internal(
+            nfts,
+            mt_id,
+            amount.into(),
+            mt_owner,
+            token_metadata,
+            sale_amount,
+            sale_price_per_whole,
+        );
     }
 
+    #[payable]
     fn nft_fractionalize_unwrap(&mut self, mt_id: types::MTTokenId, release_to: Option<AccountId>) {
-        todo!()
+        self.nft_fractionalize_unwrap_internal(mt_id, release_to);
     }
 
     fn nft_fractionalize_get_underlying(

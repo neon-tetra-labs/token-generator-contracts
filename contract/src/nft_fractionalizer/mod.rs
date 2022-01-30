@@ -1,19 +1,23 @@
-use multi_token_standard::{metadata::MultiTokenMetadata, Token};
+use multi_token_standard::{core::MultiTokenCore, metadata::MultiTokenMetadata, Token};
 use near_account::Account;
-use near_internal_balances_plugin::{SudoInternalBalanceHandlers, TokenId};
+use near_internal_balances_plugin::{
+    InternalBalanceHandlers, SudoInternalBalanceHandlers, TokenId,
+};
 use near_sdk::{
+    assert_one_yocto,
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
     env,
     json_types::U128,
-    AccountId,
+    serde::{self, Deserialize, Serialize},
+    AccountId, Balance,
 };
 
 use crate::{
+    sales::{SaleOptions, WHOLE_RATIO},
     types::{MTTokenId, MTTokenType},
     Contract,
 };
-
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct NftInfo {
     nfts: Vec<TokenId>,
@@ -21,7 +25,6 @@ pub struct NftInfo {
     /// 'deleted'
     unwrapped: bool,
 }
-
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct NftFractionalizer {
     // TODO: add one field for
@@ -39,6 +42,8 @@ pub trait NftFractionalizerFns {
         amount: U128,
         mt_owner: Option<AccountId>,
         token_metadata: MultiTokenMetadata,
+        sale_amount: Option<Balance>,
+        sale_price_per_whole: Option<Balance>,
     );
 
     /// Deletes the mt and releases the nfts.
@@ -74,9 +79,12 @@ impl Contract {
         amount: u128,
         mt_owner: Option<AccountId>,
         token_metadata: MultiTokenMetadata,
+        sale_amount_whole: Option<Balance>,
+        sale_price_per_whole: Option<Balance>,
     ) {
-        let initial_storage_usage = env::storage_usage();
         let minter = env::predecessor_account_id();
+        let mt_owner = mt_owner.unwrap_or(minter.clone());
+        let initial_storage_usage = env::storage_usage();
 
         // Subtract from teh user's balances
         for token in &nfts {
@@ -89,12 +97,41 @@ impl Contract {
             mt_id.clone(),
             MTTokenType::Ft,
             Some(amount),
-            mt_owner.unwrap_or(minter),
+            mt_owner.clone(),
             token_metadata,
         );
 
         // Insert the mt into local data
         self.insert_mt(&mt_id, nfts);
+
+        match (sale_amount_whole, sale_price_per_whole) {
+            (Some(sale_amount_whole), Some(sale_price_per_whole)) => {
+                let sale_amount = sale_amount_whole * WHOLE_RATIO;
+                assert!(
+                    sale_amount <= amount,
+                    "Expected the sale amount to be less than or equal to the total supply"
+                );
+                // Transfer the sale tokens to the current contract
+                self.mt.internal_transfer(
+                    &mt_owner,
+                    &env::current_account_id(),
+                    &mt_id,
+                    sale_amount,
+                    None,
+                );
+
+                self.sales_create(
+                    &mt_id,
+                    SaleOptions {
+                        owner: mt_owner,
+                        amount_to_sell: sale_amount,
+                        near_price_per_whole_token: sale_price_per_whole,
+                        sold: 0,
+                    },
+                );
+            }
+            _ => {}
+        }
 
         // Return any extra attached deposit not used for storage
         self.check_storage_deposit(
@@ -104,11 +141,29 @@ impl Contract {
     }
 
     /// Deletes the mt and releases the nfts.
-    fn nft_fractionalize_unwrap_internal(
+    pub(crate) fn nft_fractionalize_unwrap_internal(
         &mut self,
         mt_id: MTTokenId,
         release_to: Option<AccountId>,
     ) {
+        assert_one_yocto();
+        let caller = env::predecessor_account_id();
+        let caller_balance = self.mt.balance_of_batch(caller.clone(), vec![mt_id.clone()])[0].0;
+        let total_supply = self.mt.total_supply(mt_id.clone()).0;
+        assert_eq!(
+            total_supply, caller_balance,
+            "Unwrapping can only be done if the unwrapper holds all the tokens"
+        );
+
+        // burn the supply of the entire token, but keep around the metadata for future reference
+        self.mt.internal_withdraw(&mt_id, &caller, total_supply);
+
+        // redeposit the NFT's into the caller's account
+        let nfts = self.nft_fractionalizer.mt_to_nfts.get(&mt_id).unwrap();
+        let release_to = release_to.as_ref().unwrap_or(&caller);
+        for nft in nfts.nfts {
+            self.internal_balance_increase(&release_to, &nft, 1);
+        }
     }
 
     fn nft_fractionalize_get_underlying_internal(&self, mt_id: MTTokenId) -> Vec<TokenId> {
