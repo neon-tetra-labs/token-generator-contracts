@@ -42,8 +42,8 @@ pub trait NftFractionalizerFns {
         amount: U128,
         mt_owner: Option<AccountId>,
         token_metadata: MultiTokenMetadata,
-        sale_amount: Option<Balance>,
-        sale_price_per_whole: Option<Balance>,
+        sale_amount_whole: Option<U128>,
+        sale_price_per_whole: Option<U128>,
     );
 
     /// Deletes the mt and releases the nfts.

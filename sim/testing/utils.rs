@@ -16,6 +16,13 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     NFT_BYTES => "res/nft.wasm",
 }
 
+pub struct InitRet {
+    alice: UserAccount,
+    root: UserAccount,
+    contract: ContractAccount<ContractContract>,
+    nft: ContractAccount<NFTContract>,
+}
+
 pub const CONTRACT_ID: &str = "dummy";
 pub const NFT_ID: &str = "nft";
 
@@ -70,10 +77,7 @@ pub fn register_user(user: &near_sdk_sim::UserAccount) {
     );
 }
 
-pub fn init_with_macros(
-    nfts_to_mint: Vec<String>,
-    nft_mint_fee: u128,
-) -> (UserAccount, ContractAccount<ContractContract>, ContractAccount<NFTContract>, UserAccount) {
+pub fn init_with_macros(nfts_to_mint: Vec<String>, nft_mint_fee: u128, sale_fee: u128) -> InitRet {
     let root = init_simulator(None);
     // uses default values for deposit and gas
     let contract = deploy!(
@@ -86,7 +90,7 @@ pub fn init_with_macros(
         // User deploying the contract,
         signer_account: root,
         // init method
-        init_method: new(root.account_id(), root.account_id(), U128::from(nft_mint_fee))
+        init_method: new(root.account_id(), root.account_id(), U128::from(nft_mint_fee), U128::from(sale_fee))
     );
 
     let nft = deploy!(
@@ -116,5 +120,5 @@ pub fn init_with_macros(
     register_user(&root);
     register_user(&alice);
 
-    (root, contract, nft, alice)
+    InitRet { root, alice, contract, nft }
 }

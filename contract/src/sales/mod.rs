@@ -53,7 +53,11 @@ impl SaleOptions {
 }
 
 impl Contract {
-    fn sale_buy_internal(&mut self, mt_id: MTTokenId, amount_whole: Balance) {
+    pub(crate) fn sale_info_internal(&self, mt_id: MTTokenId) -> SaleOptions {
+        self.sales.sales.get(&mt_id).expect("Cannot find the sale with the given token id")
+    }
+
+    pub(crate) fn sale_buy_internal(&mut self, mt_id: MTTokenId, amount_whole: Balance) {
         let caller = env::predecessor_account_id();
         // ensure the caller is registered
         let caller_registered = self
@@ -65,7 +69,8 @@ impl Contract {
             .is_some();
         assert!(caller_registered == true, "Expected the caller to be registered");
 
-        let sale = self.sales.sales.get(&mt_id).expect(&format!("Cannot find sale for {}", mt_id));
+        let mut sale =
+            self.sales.sales.get(&mt_id).expect(&format!("Cannot find sale for {}", mt_id));
         let cost = sale.get_near_price_per_whole(amount_whole);
 
         // Make sure that the proper amount is attached and transfer accordingly
@@ -74,7 +79,8 @@ impl Contract {
         // Transfer the fees/ cost
         let amount_to_treasury = Self::calculate_fee(cost, self.sales.platform_fee_numerator);
         let amount_to_owner = cost - amount_to_treasury;
-        self.transfer_fee(amount_to_owner, &self.treasury_id);
+        let treasury = &self.treasury_id.clone();
+        self.transfer_fee(amount_to_owner, treasury);
         self.transfer_fee(amount_to_owner, &sale.owner);
 
         // Transfer the token's to the buyer's account

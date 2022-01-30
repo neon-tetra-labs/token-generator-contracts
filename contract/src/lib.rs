@@ -9,7 +9,7 @@ use near_sdk::collections::{LazyOption, UnorderedMap};
 use near_sdk::json_types::U128;
 use near_sdk::{near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, PromiseOrValue};
 use nft_fractionalizer::{NftFractionalizer, NftFractionalizerFns};
-use sales::{SaleOptions, Sales};
+use sales::{SaleOptions, Sales, SalesFns};
 
 pub mod nft_fractionalizer;
 pub mod sales;
@@ -57,7 +57,12 @@ impl Contract {
     /// Initializes the contract with the given total supply owned by the given `owner_id` with
     /// the given fungible token metadata.
     #[init]
-    pub fn new(owner_id: AccountId, treasury: AccountId, nft_mint_fee: U128) -> Self {
+    pub fn new(
+        owner_id: AccountId,
+        treasury: AccountId,
+        nft_mint_fee: U128,
+        sale_fee_numerator: U128,
+    ) -> Self {
         Contract {
             accounts: Accounts::new(),
             mt: MultiToken::new(
@@ -66,11 +71,23 @@ impl Contract {
                 Some(StorageKey::MultiTokenMetadata),
                 StorageKey::MultiTokenSupply,
             ),
-            sales: Sales::new(),
+
+            sales: Sales::new(sale_fee_numerator.into()),
             owner_id,
             nft_fractionalizer: NftFractionalizer::new(nft_mint_fee.into()),
             treasury_id: treasury,
         }
+    }
+}
+
+#[near_bindgen]
+impl SalesFns for Contract {
+    fn sale_buy(&mut self, mt_id: types::MTTokenId, amount: U128) {
+        self.sale_buy_internal(mt_id, amount.into())
+    }
+
+    fn sale_info(&self, mt_id: types::MTTokenId) -> SaleOptions {
+        self.sale_info_internal(mt_id)
     }
 }
 
@@ -84,8 +101,8 @@ impl NftFractionalizerFns for Contract {
         amount: U128,
         mt_owner: Option<AccountId>,
         token_metadata: multi_token_standard::metadata::MultiTokenMetadata,
-        sale_amount: Option<Balance>,
-        sale_price_per_whole: Option<Balance>,
+        sale_amount_whole: Option<U128>,
+        sale_price_per_whole: Option<U128>,
     ) {
         self.nft_fractionalize_internal(
             nfts,
@@ -93,8 +110,8 @@ impl NftFractionalizerFns for Contract {
             amount.into(),
             mt_owner,
             token_metadata,
-            sale_amount,
-            sale_price_per_whole,
+            sale_amount_whole.map(|v| v.into()),
+            sale_price_per_whole.map(|v| v.into()),
         );
     }
 

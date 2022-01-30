@@ -2,7 +2,6 @@ use multi_token_standard::{metadata::MultiTokenMetadata, TokenType};
 use near_sdk::{env, require, AccountId, Balance, Promise};
 use uint::construct_uint;
 
-
 use crate::{
     types::{MTTokenId, MTTokenType},
     Contract,
@@ -32,6 +31,7 @@ impl Contract {
     }
 
     pub(crate) fn calculate_fee(amount: Balance, fee_numerator: u128) -> Balance {
+        assert!(fee_numerator <= FEE_DENOMINATOR);
         let ret = U256::from(amount) * U256::from(fee_numerator) / U256::from(FEE_DENOMINATOR);
         ret.as_u128()
     }

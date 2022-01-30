@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 
+use contract::types::MTTokenId;
 use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{self, Deserialize, Serialize};
@@ -9,6 +10,7 @@ use near_sdk_sim::{call, to_yocto, transaction::ExecutionStatus, view, DEFAULT_G
 use near_internal_balances_plugin::TokenId;
 
 use crate::testing::utils::{init_with_macros as init, register_user};
+use crate::testing::InitRet;
 
 use super::get_default_metadata;
 
@@ -20,19 +22,28 @@ pub struct StorageBalanceTmp {
 }
 
 pub const NFT_MINT_FEE: u128 = 1_000_000;
+pub const SALE_FEE_NUMERATOR: u128 = 100_000_000u128;
 
-#[test]
-fn simulate_simple_fractionalization() {
+fn init_with_fractionalize_nfts(
+    sale_amount_whole: Option<U128>,
+    sale_price_per_whole: Option<U128>,
+) -> (InitRet, Vec<TokenId>, MTTokenId) {
     let nfts = vec!["nft_1".to_string(), "nft_2".to_string()];
-    let (root, dummy, nft, alice) = init(nfts.clone(), NFT_MINT_FEE);
-    let supply = 1_000;
+    let InitRet { alice, root, nft, contract } = init(nfts.clone(), NFT_MINT_FEE);
+    let supply = 1_000_000_000_000_000;
     let mt_id = "MyNFTFRACED".to_string();
 
     // deposit the NFTs
     for nft_id in &nfts {
         call!(
             root,
-            nft.nft_transfer_call(dummy.account_id(), nft_id.clone(), None, None, "".to_string()),
+            nft.nft_transfer_call(
+                contract.account_id(),
+                nft_id.clone(),
+                None,
+                None,
+                "".to_string()
+            ),
             deposit = 1
         )
         .assert_success();
@@ -45,7 +56,7 @@ fn simulate_simple_fractionalization() {
 
     for nft_tok in &nfts_tok_ids {
         let bal: U128 =
-            view!(dummy.internal_balance_get_balance(root.account_id(), nft_tok.clone()))
+            view!(contract.internal_balance_get_balance(root.account_id(), nft_tok.clone()))
                 .unwrap_json();
         assert_eq!(bal.0, 1);
     }
@@ -53,44 +64,63 @@ fn simulate_simple_fractionalization() {
     // Fractionalize them
     call!(
         root,
-        dummy.nft_fractionalize(
+        contract.nft_fractionalize(
             nfts_tok_ids.clone(),
             mt_id.clone(),
             U128::from(supply),
             None,
             get_default_metadata(),
-            None,
-            None
+            sale_amount_whole,
+            sale_price_per_whole
         ),
         deposit = NFT_MINT_FEE + near_sdk::env::storage_byte_cost() * 1_000
     )
     .assert_success();
     let bal_post_frac: U128 =
-        view!(dummy.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
+        view!(contract.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
     assert_eq!(bal_post_frac.0, supply);
 
     for nft_tok in &nfts_tok_ids {
         let bal: U128 =
-            view!(dummy.internal_balance_get_balance(root.account_id(), nft_tok.clone()))
+            view!(contract.internal_balance_get_balance(root.account_id(), nft_tok.clone()))
                 .unwrap_json();
         assert_eq!(bal.0, 0);
     }
+    (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id)
+}
 
-    call!(root, dummy.nft_fractionalize_unwrap(mt_id.clone(), None), deposit = 1).assert_success();
+#[test]
+fn simulate_simple_fractionalization() {
+    let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
+        init_with_fractionalize_nfts(None, None);
+    call!(root, contract.nft_fractionalize_unwrap(mt_id.clone(), None), deposit = 1)
+        .assert_success();
     for nft_tok in &nfts_tok_ids {
         let bal: U128 =
-            view!(dummy.internal_balance_get_balance(root.account_id(), nft_tok.clone()))
+            view!(contract.internal_balance_get_balance(root.account_id(), nft_tok.clone()))
                 .unwrap_json();
         assert_eq!(bal.0, 1);
     }
     let bal_post_unwrap: U128 =
-        view!(dummy.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
+        view!(contract.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
     assert_eq!(bal_post_unwrap.0, 0);
 }
 
 #[test]
-fn simulate_creating_sale() {
-    
+fn simulate_nft_frac_sale() {
+    let sale_amount_whole = 100;
+    let sale_price_whole = 100;
+    let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
+        init_with_fractionalize_nfts(Some(sale_amount_whole.into()), Some(sale_price_whole.into()));
+    // TODO: make sale
+    // Check that __sale amount__ is deducted from root
+    // Check that the contract's balance is updated
+
+    // Have Alice register with the mt
+    // Have Alice buy some of the mt
+
+    // Check that "sold" amount is updated
+    // Check that the contract's balance is updated
 }
 
 #[test]
