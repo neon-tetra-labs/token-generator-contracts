@@ -47,7 +47,7 @@ impl Sales {
 }
 
 impl SaleOptions {
-    fn get_near_price_per_whole(&self, amount_whole: Balance) -> Balance {
+    fn get_near_cost(&self, amount_whole: Balance) -> Balance {
         self.near_price_per_whole_token * amount_whole
     }
 }
@@ -71,7 +71,7 @@ impl Contract {
 
         let mut sale =
             self.sales.sales.get(&mt_id).expect(&format!("Cannot find sale for {}", mt_id));
-        let cost = sale.get_near_price_per_whole(amount_whole);
+        let cost = sale.get_near_cost(amount_whole);
 
         // Make sure that the proper amount is attached and transfer accordingly
         assert_eq!(env::attached_deposit(), cost, "Expected {} attached to pay for the sale", cost);
@@ -80,7 +80,7 @@ impl Contract {
         let amount_to_treasury = Self::calculate_fee(cost, self.sales.platform_fee_numerator);
         let amount_to_owner = cost - amount_to_treasury;
         let treasury = &self.treasury_id.clone();
-        self.transfer_fee(amount_to_owner, treasury);
+        self.transfer_fee(amount_to_treasury, treasury);
         self.transfer_fee(amount_to_owner, &sale.owner);
 
         // Transfer the token's to the buyer's account
@@ -93,6 +93,7 @@ impl Contract {
         );
 
         sale.sold += amount_whole * WHOLE_RATIO;
+        self.sales.sales.insert(&mt_id, &sale);
     }
 }
 

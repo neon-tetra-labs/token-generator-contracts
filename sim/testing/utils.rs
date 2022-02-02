@@ -90,7 +90,7 @@ pub fn init_with_macros(nfts_to_mint: Vec<String>, nft_mint_fee: u128, sale_fee:
         // User deploying the contract,
         signer_account: root,
         // init method
-        init_method: new(root.account_id(), root.account_id(), U128::from(nft_mint_fee), U128::from(sale_fee))
+        init_method: new(root.account_id(), AccountId::from_str("alice").unwrap(), U128::from(nft_mint_fee), U128::from(sale_fee))
     );
 
     let nft = deploy!(

@@ -116,7 +116,7 @@ fn simulate_nft_frac_sale() {
     let sale_price_whole = 100;
     let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
         init_with_fractionalize_nfts(Some(sale_amount_whole.into()), Some(sale_price_whole.into()));
-    let treasury = root.account_id();
+    let treasury = alice.account_id();
 
     let bal_init_sale: U128 =
         view!(contract.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
@@ -139,9 +139,6 @@ fn simulate_nft_frac_sale() {
 
     assert_eq!(&desired_opts, &sale_info);
 
-    let treasury_bal_pre_sale: StorageBalance =
-        view!(contract.accounts_near_balance_of(treasury.clone())).unwrap_json();
-
     let seller_bal_pre_sale: StorageBalance =
         view!(contract.accounts_near_balance_of(root.account_id())).unwrap_json();
 
@@ -152,6 +149,10 @@ fn simulate_nft_frac_sale() {
         deposit = near_sdk::env::storage_byte_cost() * 2_000
     )
     .assert_success();
+
+    let treasury_bal_pre_sale: StorageBalance =
+        view!(contract.accounts_near_balance_of(treasury.clone())).unwrap_json();
+
     call!(
         alice,
         contract.sale_buy(mt_id.clone(), U128::from(whole_to_buy)),
@@ -173,12 +174,10 @@ fn simulate_nft_frac_sale() {
 
     // Check the near account balances
     // contract.
-    // TODO: register treasury? (should be done on init)
-    // TODO: register owner? (should be done on new NFT)
-    // TODO: post and prior
+
     let expected_treasury_increase =
-        WHOLE_RATIO * whole_to_buy * SALE_FEE_NUMERATOR / FEE_DENOMINATOR;
-    let expected_seller_increase = WHOLE_RATIO * whole_to_buy - expected_treasury_increase;
+        sale_price_whole * whole_to_buy * SALE_FEE_NUMERATOR / FEE_DENOMINATOR;
+    let expected_seller_increase = sale_price_whole * whole_to_buy - expected_treasury_increase;
 
     let treasury_bal: StorageBalance =
         view!(contract.accounts_near_balance_of(treasury)).unwrap_json();
