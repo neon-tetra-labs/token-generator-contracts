@@ -17,10 +17,10 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 }
 
 pub struct InitRet {
-    alice: UserAccount,
-    root: UserAccount,
-    contract: ContractAccount<ContractContract>,
-    nft: ContractAccount<NFTContract>,
+    pub alice: UserAccount,
+    pub root: UserAccount,
+    pub contract: ContractAccount<ContractContract>,
+    pub nft: ContractAccount<NFTContract>,
 }
 
 pub const CONTRACT_ID: &str = "dummy";

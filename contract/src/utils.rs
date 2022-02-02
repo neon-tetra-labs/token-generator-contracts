@@ -12,7 +12,7 @@ construct_uint! {
     pub struct U256(4);
 }
 
-pub(crate) const FEE_DENOMINATOR: u128 = 1_000_000_000u128;
+pub const FEE_DENOMINATOR: u128 = 1_000_000_000u128;
 
 /// Fee/ near transfer handling
 impl Contract {

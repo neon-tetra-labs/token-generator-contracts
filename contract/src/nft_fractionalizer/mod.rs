@@ -86,7 +86,7 @@ impl Contract {
         let mt_owner = mt_owner.unwrap_or(minter.clone());
         let initial_storage_usage = env::storage_usage();
 
-        // Subtract from teh user's balances
+        // Subtract from the user's balances
         for token in &nfts {
             Self::assert_nft_type(token);
             self.internal_balance_subtract(&minter, &token, 1);
@@ -111,7 +111,8 @@ impl Contract {
                     sale_amount <= amount,
                     "Expected the sale amount to be less than or equal to the total supply"
                 );
-                // Transfer the sale tokens to the current contract
+                // Transfer the sale tokens to the current contract after registering it
+                self.mt.internal_register_account(mt_id.clone(), &env::current_account_id());
                 self.mt.internal_transfer(
                     &mt_owner,
                     &env::current_account_id(),

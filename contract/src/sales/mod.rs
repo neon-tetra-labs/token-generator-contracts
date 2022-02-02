@@ -12,7 +12,7 @@ use near_sdk::{
 
 use crate::{types::MTTokenId, utils::FEE_DENOMINATOR, Contract};
 
-#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct SaleOptions {
     pub amount_to_sell: Balance,
@@ -32,11 +32,11 @@ pub struct Sales {
 /// This allows for easy decimal portions of near tokens. I.e. 1 indivisible token
 /// cannot be worth less than a yoctoNear, but 1 "whole token" can be worth less than
 /// 1 "whole" quantity of Near
-pub(crate) const WHOLE_RATIO: u128 = 1_000_000_000u128;
+pub const WHOLE_RATIO: u128 = 1_000_000_000u128;
 
 // TODO: fee
 pub trait SalesFns {
-    fn sale_buy(&mut self, mt_id: MTTokenId, amount: U128);
+    fn sale_buy(&mut self, mt_id: MTTokenId, amount_whole: U128);
     fn sale_info(&self, mt_id: MTTokenId) -> SaleOptions;
 }
 

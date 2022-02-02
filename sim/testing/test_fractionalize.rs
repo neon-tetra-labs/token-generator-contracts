@@ -1,6 +1,8 @@
 use std::convert::TryFrom;
 
+use contract::sales::{SaleOptions, WHOLE_RATIO};
 use contract::types::MTTokenId;
+use contract::FEE_DENOMINATOR;
 use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{self, Deserialize, Serialize};
@@ -23,14 +25,15 @@ pub struct StorageBalanceTmp {
 
 pub const NFT_MINT_FEE: u128 = 1_000_000;
 pub const SALE_FEE_NUMERATOR: u128 = 100_000_000u128;
+const SUPPLY: u128 = 1_000_000_000_000_000;
 
 fn init_with_fractionalize_nfts(
     sale_amount_whole: Option<U128>,
     sale_price_per_whole: Option<U128>,
 ) -> (InitRet, Vec<TokenId>, MTTokenId) {
     let nfts = vec!["nft_1".to_string(), "nft_2".to_string()];
-    let InitRet { alice, root, nft, contract } = init(nfts.clone(), NFT_MINT_FEE);
-    let supply = 1_000_000_000_000_000;
+    let InitRet { alice, root, nft, contract } =
+        init(nfts.clone(), NFT_MINT_FEE, SALE_FEE_NUMERATOR);
     let mt_id = "MyNFTFRACED".to_string();
 
     // deposit the NFTs
@@ -67,7 +70,7 @@ fn init_with_fractionalize_nfts(
         contract.nft_fractionalize(
             nfts_tok_ids.clone(),
             mt_id.clone(),
-            U128::from(supply),
+            U128::from(SUPPLY),
             None,
             get_default_metadata(),
             sale_amount_whole,
@@ -78,7 +81,7 @@ fn init_with_fractionalize_nfts(
     .assert_success();
     let bal_post_frac: U128 =
         view!(contract.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
-    assert_eq!(bal_post_frac.0, supply);
+    assert_eq!(bal_post_frac.0, SUPPLY - sale_amount_whole.map(|a| a.0).unwrap_or(0) * WHOLE_RATIO);
 
     for nft_tok in &nfts_tok_ids {
         let bal: U128 =
@@ -109,18 +112,85 @@ fn simulate_simple_fractionalization() {
 #[test]
 fn simulate_nft_frac_sale() {
     let sale_amount_whole = 100;
+    let whole_to_buy = 10;
     let sale_price_whole = 100;
     let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
         init_with_fractionalize_nfts(Some(sale_amount_whole.into()), Some(sale_price_whole.into()));
-    // TODO: make sale
-    // Check that __sale amount__ is deducted from root
-    // Check that the contract's balance is updated
+    let treasury = root.account_id();
 
-    // Have Alice register with the mt
-    // Have Alice buy some of the mt
+    let bal_init_sale: U128 =
+        view!(contract.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
+    assert_eq!(bal_init_sale.0, SUPPLY - sale_amount_whole * WHOLE_RATIO);
 
-    // Check that "sold" amount is updated
-    // Check that the contract's balance is updated
+    // Check that the initial balances are correct
+    let bal_init_contract: U128 =
+        view!(contract.balance_of(contract.account_id(), mt_id.clone())).unwrap_json();
+    assert_eq!(bal_init_sale.0, SUPPLY - sale_amount_whole * WHOLE_RATIO);
+    assert_eq!(bal_init_contract.0, sale_amount_whole * WHOLE_RATIO);
+
+    // Check the initial sale
+    let mut desired_opts = SaleOptions {
+        amount_to_sell: sale_amount_whole * WHOLE_RATIO,
+        near_price_per_whole_token: sale_price_whole,
+        sold: 0,
+        owner: root.account_id(),
+    };
+    let sale_info: SaleOptions = view!(contract.sale_info(mt_id.clone())).unwrap_json();
+
+    assert_eq!(&desired_opts, &sale_info);
+
+    let treasury_bal_pre_sale: StorageBalance =
+        view!(contract.accounts_near_balance_of(treasury.clone())).unwrap_json();
+
+    let seller_bal_pre_sale: StorageBalance =
+        view!(contract.accounts_near_balance_of(root.account_id())).unwrap_json();
+
+    // Make a sale
+    call!(
+        alice,
+        contract.storage_deposit(vec![mt_id.clone()], None, None),
+        deposit = near_sdk::env::storage_byte_cost() * 2_000
+    )
+    .assert_success();
+    call!(
+        alice,
+        contract.sale_buy(mt_id.clone(), U128::from(whole_to_buy)),
+        deposit = sale_price_whole * whole_to_buy
+    )
+    .assert_success();
+
+    let sale_info: SaleOptions = view!(contract.sale_info(mt_id.clone())).unwrap_json();
+    desired_opts.sold += WHOLE_RATIO * whole_to_buy;
+    assert_eq!(desired_opts, sale_info);
+
+    let bal_post_sale_contract: U128 =
+        view!(contract.balance_of(contract.account_id(), mt_id.clone())).unwrap_json();
+    assert_eq!(bal_post_sale_contract.0, (sale_amount_whole - whole_to_buy) * WHOLE_RATIO);
+
+    let bal_post_sale_alice: U128 =
+        view!(contract.balance_of(alice.account_id(), mt_id.clone())).unwrap_json();
+    assert_eq!(bal_post_sale_alice.0, whole_to_buy * WHOLE_RATIO);
+
+    // Check the near account balances
+    // contract.
+    // TODO: register treasury? (should be done on init)
+    // TODO: register owner? (should be done on new NFT)
+    // TODO: post and prior
+    let expected_treasury_increase =
+        WHOLE_RATIO * whole_to_buy * SALE_FEE_NUMERATOR / FEE_DENOMINATOR;
+    let expected_seller_increase = WHOLE_RATIO * whole_to_buy - expected_treasury_increase;
+
+    let treasury_bal: StorageBalance =
+        view!(contract.accounts_near_balance_of(treasury)).unwrap_json();
+
+    let seller_bal: StorageBalance =
+        view!(contract.accounts_near_balance_of(root.account_id())).unwrap_json();
+
+    assert_eq!(
+        treasury_bal.available.0 - treasury_bal_pre_sale.available.0,
+        expected_treasury_increase
+    );
+    assert_eq!(seller_bal.available.0 - seller_bal_pre_sale.available.0, expected_seller_increase);
 }
 
 #[test]

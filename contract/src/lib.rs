@@ -16,6 +16,8 @@ pub mod sales;
 pub mod types;
 mod utils;
 
+pub use utils::FEE_DENOMINATOR;
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AccountInfo {
     pub internal_balance: UnorderedMap<TokenId, Balance>,
@@ -82,8 +84,9 @@ impl Contract {
 
 #[near_bindgen]
 impl SalesFns for Contract {
-    fn sale_buy(&mut self, mt_id: types::MTTokenId, amount: U128) {
-        self.sale_buy_internal(mt_id, amount.into())
+    #[payable]
+    fn sale_buy(&mut self, mt_id: types::MTTokenId, amount_whole: U128) {
+        self.sale_buy_internal(mt_id, amount_whole.into())
     }
 
     fn sale_info(&self, mt_id: types::MTTokenId) -> SaleOptions {
