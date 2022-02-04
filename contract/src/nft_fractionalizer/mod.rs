@@ -14,7 +14,7 @@ use near_sdk::{
 };
 
 use crate::{
-    sales::{SaleOptions, WHOLE_RATIO},
+    sales::SaleOptions,
     types::{MTTokenId, MTTokenType},
     Contract,
 };
@@ -42,8 +42,8 @@ pub trait NftFractionalizerFns {
         amount: U128,
         mt_owner: Option<AccountId>,
         token_metadata: MultiTokenMetadata,
-        sale_amount_whole: Option<U128>,
-        sale_price_per_whole: Option<U128>,
+        sale_amount: Option<U128>,
+        sale_price_per_token: Option<U128>,
     );
 
     /// Deletes the mt and releases the nfts.
@@ -51,7 +51,9 @@ pub trait NftFractionalizerFns {
 
     fn nft_fractionalize_update_mint_fee(&mut self, update: U128);
 
-    fn nft_fractionalize_get_underlying(&self, mt_id: MTTokenId) -> Vec<Token>;
+    fn nft_fractionalize_get_underlying(&self, mt_id: MTTokenId) -> Vec<TokenId>;
+
+    fn nft_fractionalize_get_mint_fee(&self) -> U128;
 }
 
 impl NftFractionalizer {
@@ -79,8 +81,8 @@ impl Contract {
         amount: u128,
         mt_owner: Option<AccountId>,
         token_metadata: MultiTokenMetadata,
-        sale_amount_whole: Option<Balance>,
-        sale_price_per_whole: Option<Balance>,
+        sale_amount: Option<Balance>,
+        sale_price_per_token: Option<Balance>,
     ) {
         let minter = env::predecessor_account_id();
         let mt_owner = mt_owner.unwrap_or(minter.clone());
@@ -104,9 +106,8 @@ impl Contract {
         // Insert the mt into local data
         self.insert_mt(&mt_id, nfts);
 
-        match (sale_amount_whole, sale_price_per_whole) {
-            (Some(sale_amount_whole), Some(sale_price_per_whole)) => {
-                let sale_amount = sale_amount_whole * WHOLE_RATIO;
+        match (sale_amount, sale_price_per_token) {
+            (Some(sale_amount), Some(sale_price_per_token)) => {
                 assert!(
                     sale_amount <= amount,
                     "Expected the sale amount to be less than or equal to the total supply"
@@ -126,7 +127,7 @@ impl Contract {
                     SaleOptions {
                         owner: mt_owner,
                         amount_to_sell: sale_amount,
-                        near_price_per_whole_token: sale_price_per_whole,
+                        near_price_per_token: sale_price_per_token,
                         sold: 0,
                     },
                 );
@@ -167,8 +168,15 @@ impl Contract {
         }
     }
 
-    fn nft_fractionalize_get_underlying_internal(&self, mt_id: MTTokenId) -> Vec<TokenId> {
-        todo!()
+    pub(crate) fn nft_fractionalize_get_mint_fee_internal(&self) -> U128 {
+        U128::from(self.nft_fractionalizer.mint_fee)
+    }
+
+    pub(crate) fn nft_fractionalize_get_underlying_internal(
+        &self,
+        mt_id: MTTokenId,
+    ) -> Vec<TokenId> {
+        self.nft_fractionalizer.mt_to_nfts.get(&mt_id).expect("The queried mt does not exist").nfts
     }
 
     fn assert_nft_type(token: &TokenId) {

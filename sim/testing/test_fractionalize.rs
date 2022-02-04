@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use contract::sales::{SaleOptions, WHOLE_RATIO};
+use contract::sales::SaleOptions;
 use contract::types::MTTokenId;
 use contract::FEE_DENOMINATOR;
 use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
@@ -81,7 +81,7 @@ fn init_with_fractionalize_nfts(
     .assert_success();
     let bal_post_frac: U128 =
         view!(contract.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
-    assert_eq!(bal_post_frac.0, SUPPLY - sale_amount_whole.map(|a| a.0).unwrap_or(0) * WHOLE_RATIO);
+    assert_eq!(bal_post_frac.0, SUPPLY - sale_amount_whole.map(|a| a.0).unwrap_or(0));
 
     for nft_tok in &nfts_tok_ids {
         let bal: U128 =
@@ -120,18 +120,18 @@ fn simulate_nft_frac_sale() {
 
     let bal_init_sale: U128 =
         view!(contract.balance_of(root.account_id(), mt_id.clone())).unwrap_json();
-    assert_eq!(bal_init_sale.0, SUPPLY - sale_amount_whole * WHOLE_RATIO);
+    assert_eq!(bal_init_sale.0, SUPPLY - sale_amount_whole);
 
     // Check that the initial balances are correct
     let bal_init_contract: U128 =
         view!(contract.balance_of(contract.account_id(), mt_id.clone())).unwrap_json();
-    assert_eq!(bal_init_sale.0, SUPPLY - sale_amount_whole * WHOLE_RATIO);
-    assert_eq!(bal_init_contract.0, sale_amount_whole * WHOLE_RATIO);
+    assert_eq!(bal_init_sale.0, SUPPLY - sale_amount_whole);
+    assert_eq!(bal_init_contract.0, sale_amount_whole);
 
     // Check the initial sale
     let mut desired_opts = SaleOptions {
-        amount_to_sell: sale_amount_whole * WHOLE_RATIO,
-        near_price_per_whole_token: sale_price_whole,
+        amount_to_sell: sale_amount_whole,
+        near_price_per_token: sale_price_whole,
         sold: 0,
         owner: root.account_id(),
     };
@@ -161,16 +161,16 @@ fn simulate_nft_frac_sale() {
     .assert_success();
 
     let sale_info: SaleOptions = view!(contract.sale_info(mt_id.clone())).unwrap_json();
-    desired_opts.sold += WHOLE_RATIO * whole_to_buy;
+    desired_opts.sold +=  whole_to_buy;
     assert_eq!(desired_opts, sale_info);
 
     let bal_post_sale_contract: U128 =
         view!(contract.balance_of(contract.account_id(), mt_id.clone())).unwrap_json();
-    assert_eq!(bal_post_sale_contract.0, (sale_amount_whole - whole_to_buy) * WHOLE_RATIO);
+    assert_eq!(bal_post_sale_contract.0, (sale_amount_whole - whole_to_buy) );
 
     let bal_post_sale_alice: U128 =
         view!(contract.balance_of(alice.account_id(), mt_id.clone())).unwrap_json();
-    assert_eq!(bal_post_sale_alice.0, whole_to_buy * WHOLE_RATIO);
+    assert_eq!(bal_post_sale_alice.0, whole_to_buy);
 
     // Check the near account balances
     // contract.

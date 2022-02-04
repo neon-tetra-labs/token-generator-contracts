@@ -7,7 +7,9 @@ use near_internal_balances_plugin::token_id::TokenId;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, UnorderedMap};
 use near_sdk::json_types::U128;
-use near_sdk::{near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, PromiseOrValue};
+use near_sdk::{
+    env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, PromiseOrValue,
+};
 use nft_fractionalizer::{NftFractionalizer, NftFractionalizerFns};
 use sales::{SaleOptions, Sales, SalesFns};
 
@@ -60,11 +62,13 @@ impl Contract {
     /// the given fungible token metadata.
     #[init]
     pub fn new(
-        owner_id: AccountId,
-        treasury: AccountId,
-        nft_mint_fee: U128,
-        sale_fee_numerator: U128,
+        owner_id: Option<AccountId>,
+        treasury: Option<AccountId>,
+        nft_mint_fee_numerator: Option<U128>,
+        sale_fee_numerator: Option<U128>,
     ) -> Self {
+        let owner_id = owner_id.unwrap_or(env::predecessor_account_id());
+        let treasury = treasury.unwrap_or(env::predecessor_account_id());
         Contract {
             accounts: Accounts::new(),
             mt: MultiToken::new(
@@ -74,9 +78,11 @@ impl Contract {
                 StorageKey::MultiTokenSupply,
             ),
 
-            sales: Sales::new(sale_fee_numerator.into()),
+            sales: Sales::new(sale_fee_numerator.map(|v| v.into()).unwrap_or(0)),
             owner_id,
-            nft_fractionalizer: NftFractionalizer::new(nft_mint_fee.into()),
+            nft_fractionalizer: NftFractionalizer::new(
+                nft_mint_fee_numerator.map(|v| v.into()).unwrap_or(0),
+            ),
             treasury_id: treasury,
         }
     }
@@ -85,8 +91,8 @@ impl Contract {
 #[near_bindgen]
 impl SalesFns for Contract {
     #[payable]
-    fn sale_buy(&mut self, mt_id: types::MTTokenId, amount_whole: U128) {
-        self.sale_buy_internal(mt_id, amount_whole.into())
+    fn sale_buy(&mut self, mt_id: types::MTTokenId, amount: U128) {
+        self.sale_buy_internal(mt_id, amount.into())
     }
 
     fn sale_info(&self, mt_id: types::MTTokenId) -> SaleOptions {
@@ -104,8 +110,8 @@ impl NftFractionalizerFns for Contract {
         amount: U128,
         mt_owner: Option<AccountId>,
         token_metadata: multi_token_standard::metadata::MultiTokenMetadata,
-        sale_amount_whole: Option<U128>,
-        sale_price_per_whole: Option<U128>,
+        sale_amount: Option<U128>,
+        sale_price_per_token: Option<U128>,
     ) {
         self.nft_fractionalize_internal(
             nfts,
@@ -113,8 +119,8 @@ impl NftFractionalizerFns for Contract {
             amount.into(),
             mt_owner,
             token_metadata,
-            sale_amount_whole.map(|v| v.into()),
-            sale_price_per_whole.map(|v| v.into()),
+            sale_amount.map(|v| v.into()),
+            sale_price_per_token.map(|v| v.into()),
         );
     }
 
@@ -123,11 +129,12 @@ impl NftFractionalizerFns for Contract {
         self.nft_fractionalize_unwrap_internal(mt_id, release_to);
     }
 
-    fn nft_fractionalize_get_underlying(
-        &self,
-        mt_id: types::MTTokenId,
-    ) -> Vec<multi_token_standard::Token> {
-        todo!()
+    fn nft_fractionalize_get_mint_fee(&self) -> U128 {
+        self.nft_fractionalize_get_mint_fee_internal()
+    }
+
+    fn nft_fractionalize_get_underlying(&self, mt_id: types::MTTokenId) -> Vec<TokenId> {
+        self.nft_fractionalize_get_underlying_internal(mt_id)
     }
 
     fn nft_fractionalize_update_mint_fee(&mut self, update: U128) {
