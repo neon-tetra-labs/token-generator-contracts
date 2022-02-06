@@ -18,6 +18,7 @@ pub mod sales;
 pub mod types;
 mod utils;
 
+use types::MTTokenId;
 pub use utils::FEE_DENOMINATOR;
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -97,6 +98,10 @@ impl SalesFns for Contract {
 
     fn sale_info(&self, mt_id: types::MTTokenId) -> SaleOptions {
         self.sale_info_internal(mt_id)
+    }
+
+    fn sale_get_all_sales(&self) -> Vec<(MTTokenId, SaleOptions)> {
+        self.sale_get_all_sales_internal()
     }
 }
 

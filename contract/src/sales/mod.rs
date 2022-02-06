@@ -32,6 +32,7 @@ pub struct Sales {
 pub trait SalesFns {
     fn sale_buy(&mut self, mt_id: MTTokenId, amount: U128);
     fn sale_info(&self, mt_id: MTTokenId) -> SaleOptions;
+    fn sale_get_all_sales(&self) -> Vec<(MTTokenId, SaleOptions)>;
 }
 
 impl Sales {
@@ -49,6 +50,10 @@ impl SaleOptions {
 impl Contract {
     pub(crate) fn sale_info_internal(&self, mt_id: MTTokenId) -> SaleOptions {
         self.sales.sales.get(&mt_id).expect("Cannot find the sale with the given token id")
+    }
+
+    pub(crate) fn sale_get_all_sales_internal(&self) -> Vec<(MTTokenId, SaleOptions)> {
+        self.sales.sales.iter().collect()
     }
 
     pub(crate) fn sale_buy_internal(&mut self, mt_id: MTTokenId, amount: Balance) {
