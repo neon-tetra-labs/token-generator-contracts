@@ -1,4 +1,4 @@
-use multi_token_standard::{impl_multi_token_core, impl_multi_token_storage, MultiToken};
+use multi_token_standard::{impl_multi_token_core, impl_multi_token_storage, MultiToken, impl_multi_token_metadata};
 use near_account::{AccountDeposits, AccountInfoTrait, Accounts, NearAccounts, NewInfo};
 use near_internal_balances_plugin::impl_near_balance_plugin;
 
@@ -56,6 +56,7 @@ pub struct Contract {
 impl_near_balance_plugin!(Contract, accounts, AccountInfo, internal_balance);
 impl_multi_token_core!(Contract, mt);
 impl_multi_token_storage!(Contract, mt);
+impl_multi_token_metadata!(Contract, mt);
 
 #[near_bindgen]
 impl Contract {
