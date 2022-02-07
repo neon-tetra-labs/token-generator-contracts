@@ -12,8 +12,16 @@ use near_sdk::{
 
 use crate::{types::MTTokenId, utils::FEE_DENOMINATOR, Contract};
 
-#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
+pub struct SaleOptionsSerial {
+    pub amount_to_sell: U128,
+    pub near_price_per_token: U128,
+    pub sold: U128,
+    pub owner: AccountId,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug)]
 pub struct SaleOptions {
     pub amount_to_sell: Balance,
     pub near_price_per_token: Balance,
@@ -31,8 +39,8 @@ pub struct Sales {
 // TODO: fee
 pub trait SalesFns {
     fn sale_buy(&mut self, mt_id: MTTokenId, amount: U128);
-    fn sale_info(&self, mt_id: MTTokenId) -> SaleOptions;
-    fn sale_get_all_sales(&self) -> Vec<(MTTokenId, SaleOptions)>;
+    fn sale_info(&self, mt_id: MTTokenId) -> SaleOptionsSerial;
+    fn sale_get_all_sales(&self) -> Vec<(MTTokenId, SaleOptionsSerial)>;
 }
 
 impl Sales {
@@ -45,15 +53,28 @@ impl SaleOptions {
     fn get_near_cost(&self, amount: Balance) -> Balance {
         self.near_price_per_token * amount
     }
+
+    fn to_serial(&self) -> SaleOptionsSerial {
+        SaleOptionsSerial {
+            amount_to_sell: U128::from(self.amount_to_sell),
+            sold: U128::from(self.sold),
+            owner: self.owner.clone(),
+            near_price_per_token: U128::from(self.near_price_per_token),
+        }
+    }
 }
 
 impl Contract {
-    pub(crate) fn sale_info_internal(&self, mt_id: MTTokenId) -> SaleOptions {
-        self.sales.sales.get(&mt_id).expect("Cannot find the sale with the given token id")
+    pub(crate) fn sale_info_internal(&self, mt_id: MTTokenId) -> SaleOptionsSerial {
+        self.sales
+            .sales
+            .get(&mt_id)
+            .expect("Cannot find the sale with the given token id")
+            .to_serial()
     }
 
-    pub(crate) fn sale_get_all_sales_internal(&self) -> Vec<(MTTokenId, SaleOptions)> {
-        self.sales.sales.iter().collect()
+    pub(crate) fn sale_get_all_sales_internal(&self) -> Vec<(MTTokenId, SaleOptionsSerial)> {
+        self.sales.sales.iter().map(|(tok_id, sale_opts)| (tok_id, sale_opts.to_serial())).collect()
     }
 
     pub(crate) fn sale_buy_internal(&mut self, mt_id: MTTokenId, amount: Balance) {

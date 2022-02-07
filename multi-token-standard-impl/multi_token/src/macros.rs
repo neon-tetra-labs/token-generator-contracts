@@ -60,7 +60,11 @@ macro_rules! impl_multi_token_core {
                 self.$token.balance_of(owner_id, token_id)
             }
 
-            fn balance_of_batch(&self, owner_id: AccountId, token_ids: Vec<$crate::TokenId>) -> Vec<U128> {
+            fn balance_of_batch(
+                &self,
+                owner_id: AccountId,
+                token_ids: Vec<$crate::TokenId>,
+            ) -> Vec<U128> {
                 self.$token.balance_of_batch(owner_id, token_ids)
             }
 
@@ -84,6 +88,25 @@ macro_rules! impl_multi_token_core {
                 amounts: Vec<U128>,
             ) -> Vec<U128> {
                 self.$token.mt_resolve_transfer(sender_id, receiver_id, token_ids, amounts)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_multi_token_metadata {
+    ($contract: ident, $token: ident) => {
+        use $crate::metadata::MultiTokenMetadataProvider;
+
+        #[near_bindgen]
+        impl MultiTokenMetadataProvider for $contract {
+            fn mt_metadata(&self, token_id: String) -> $crate::metadata::MultiTokenMetadata {
+                self.$token
+                    .token_metadata_by_id
+                    .as_ref()
+                    .unwrap()
+                    .get(&token_id)
+                    .expect("Cannot find the metadata for the given token")
             }
         }
     };

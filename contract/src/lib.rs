@@ -1,4 +1,6 @@
-use multi_token_standard::{impl_multi_token_core, impl_multi_token_storage, MultiToken};
+use multi_token_standard::{
+    impl_multi_token_core, impl_multi_token_metadata, impl_multi_token_storage, MultiToken,
+};
 use near_account::{AccountDeposits, AccountInfoTrait, Accounts, NearAccounts, NewInfo};
 use near_internal_balances_plugin::impl_near_balance_plugin;
 
@@ -11,7 +13,7 @@ use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, PromiseOrValue,
 };
 use nft_fractionalizer::{NftFractionalizer, NftFractionalizerFns};
-use sales::{SaleOptions, Sales, SalesFns};
+use sales::{SaleOptions, SaleOptionsSerial, Sales, SalesFns};
 
 pub mod nft_fractionalizer;
 pub mod sales;
@@ -56,6 +58,7 @@ pub struct Contract {
 impl_near_balance_plugin!(Contract, accounts, AccountInfo, internal_balance);
 impl_multi_token_core!(Contract, mt);
 impl_multi_token_storage!(Contract, mt);
+impl_multi_token_metadata!(Contract, mt);
 
 #[near_bindgen]
 impl Contract {
@@ -70,7 +73,10 @@ impl Contract {
     ) -> Self {
         let owner_id = owner_id.unwrap_or(env::predecessor_account_id());
         let treasury = treasury.unwrap_or(env::predecessor_account_id());
-        Contract {
+
+        // TODO: register accounts deposit/ init near bal for treasury and owner id
+        // See: https://github.com/neon-tetra-labs/token-generator-contracts/issues/3
+        let mut this = Contract {
             accounts: Accounts::new(),
             mt: MultiToken::new(
                 StorageKey::MultiTokenOwner,
@@ -78,14 +84,14 @@ impl Contract {
                 Some(StorageKey::MultiTokenMetadata),
                 StorageKey::MultiTokenSupply,
             ),
-
             sales: Sales::new(sale_fee_numerator.map(|v| v.into()).unwrap_or(0)),
             owner_id,
             nft_fractionalizer: NftFractionalizer::new(
                 nft_mint_fee_numerator.map(|v| v.into()).unwrap_or(0),
             ),
             treasury_id: treasury,
-        }
+        };
+        this
     }
 }
 
@@ -96,11 +102,11 @@ impl SalesFns for Contract {
         self.sale_buy_internal(mt_id, amount.into())
     }
 
-    fn sale_info(&self, mt_id: types::MTTokenId) -> SaleOptions {
+    fn sale_info(&self, mt_id: types::MTTokenId) -> SaleOptionsSerial {
         self.sale_info_internal(mt_id)
     }
 
-    fn sale_get_all_sales(&self) -> Vec<(MTTokenId, SaleOptions)> {
+    fn sale_get_all_sales(&self) -> Vec<(MTTokenId, SaleOptionsSerial)> {
         self.sale_get_all_sales_internal()
     }
 }
