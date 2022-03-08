@@ -36,7 +36,6 @@ pub struct Sales {
     platform_fee_numerator: u128,
 }
 
-// TODO: fee
 pub trait SalesFns {
     fn sale_buy(&mut self, mt_id: MTTokenId, amount: U128);
     fn sale_info(&self, mt_id: MTTokenId) -> SaleOptionsSerial;

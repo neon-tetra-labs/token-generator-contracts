@@ -76,8 +76,6 @@ impl Contract {
         let owner_id = owner_id.unwrap_or(env::predecessor_account_id());
         let treasury_id = treasury.unwrap_or(env::predecessor_account_id());
 
-        // TODO: register accounts deposit/ init near bal for treasury and owner id
-        // See: https://github.com/neon-tetra-labs/token-generator-contracts/issues/3
         let mut this = Contract {
             accounts: Accounts::new(),
             mt: MultiToken::new(

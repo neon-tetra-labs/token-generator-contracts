@@ -51,18 +51,6 @@ pub fn get_default_metadata() -> MultiTokenMetadata {
     }
 }
 
-pub fn register_user_with_mt(
-    user: UserAccount,
-    contract: ContractAccount<ContractContract>,
-    mt_ids: Vec<String>,
-) {
-    call!(
-        user,
-        contract.storage_deposit(mt_ids, None, None),
-        deposit = near_sdk::env::storage_byte_cost() * 1_000
-    )
-    .assert_success();
-}
 
 // Register the given `user` with NFT contract and the contract
 pub fn register_user(user: &near_sdk_sim::UserAccount) {

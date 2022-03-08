@@ -16,7 +16,6 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 
 pub const MT_ID: &str = "mt";
 const TOKEN_RECEIVER_ID: &str = "token-receiver";
-// TODO: how to export String instead of &str? Way too much `into`/`to_string` with &str.
 pub const NFT_TOKEN_ID: &str = "1";
 pub const FT_TOKEN_ID: &str = "2";
 
