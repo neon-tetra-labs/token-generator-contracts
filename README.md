@@ -1,4 +1,4 @@
-Fungible Token (FT)
+Token Fractionalization and Sales
 ===================
 
 Example implementation of a [Fungible Token] contract which uses [near-contract-standards] and [simulation] tests. This is a contract-only example.

@@ -111,7 +111,7 @@ pub fn init_with_macros(nfts_to_mint: Vec<String>, nft_mint_fee: u128, sale_fee:
     for nft_id in nfts_to_mint {
         call!(
             root,
-            nft.nft_mint(nft_id, root.account_id(), DEFAULT_META),
+            nft.nft_mint(nft_id, root.account_id(), Some(DEFAULT_META)),
             deposit = near_sdk::env::storage_byte_cost() * 1_000
         )
         .assert_success();

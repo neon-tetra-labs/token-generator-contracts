@@ -1,5 +1,7 @@
-use multi_token_standard::{impl_multi_token_core, impl_multi_token_storage, MultiToken, impl_multi_token_metadata};
-use near_account::{AccountDeposits, AccountInfoTrait, Accounts, NearAccounts, NewInfo};
+use multi_token_standard::{
+    impl_multi_token_core, impl_multi_token_metadata, impl_multi_token_storage, MultiToken,
+};
+use near_account::{impl_near_accounts_plugin, Account, AccountDeposits, Accounts, NewInfo};
 use near_internal_balances_plugin::impl_near_balance_plugin;
 
 use near_contract_standards::storage_management::StorageManagement as _StorageManagement;
@@ -39,10 +41,8 @@ enum StorageKey {
     MultiTokenSupply,
 }
 
-impl AccountInfoTrait for AccountInfo {}
-
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault, NearAccounts)]
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     pub accounts: Accounts<AccountInfo>,
     pub mt: MultiToken,
@@ -52,6 +52,7 @@ pub struct Contract {
     pub sales: Sales,
 }
 
+impl_near_accounts_plugin!(Contract, accounts, AccountInfo);
 // Implement functionality for internal balances and multi tokens
 impl_near_balance_plugin!(Contract, accounts, AccountInfo, internal_balance);
 impl_multi_token_core!(Contract, mt);
@@ -70,7 +71,7 @@ impl Contract {
         sale_fee_numerator: Option<U128>,
     ) -> Self {
         let owner_id = owner_id.unwrap_or(env::predecessor_account_id());
-        let treasury = treasury.unwrap_or(env::predecessor_account_id());
+        let treasury_id = treasury.unwrap_or(env::predecessor_account_id());
 
         // TODO: register accounts deposit/ init near bal for treasury and owner id
         // See: https://github.com/neon-tetra-labs/token-generator-contracts/issues/3
@@ -83,12 +84,20 @@ impl Contract {
                 StorageKey::MultiTokenSupply,
             ),
             sales: Sales::new(sale_fee_numerator.map(|v| v.into()).unwrap_or(0)),
-            owner_id,
+            owner_id: owner_id.clone(),
             nft_fractionalizer: NftFractionalizer::new(
                 nft_mint_fee_numerator.map(|v| v.into()).unwrap_or(0),
             ),
-            treasury_id: treasury,
+            treasury_id: treasury_id.clone(),
         };
+
+        let default_account = Account::default_from_account_id(owner_id.clone());
+        this.accounts.accounts.insert(&owner_id, &default_account);
+
+        if owner_id != treasury_id {
+            let default_account_treasury = Account::default_from_account_id(treasury_id.clone());
+            this.accounts.accounts.insert(&treasury_id, &default_account_treasury);
+        }
         this
     }
 }
