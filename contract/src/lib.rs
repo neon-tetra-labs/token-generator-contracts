@@ -1,7 +1,10 @@
 use multi_token_standard::{
     impl_multi_token_core, impl_multi_token_metadata, impl_multi_token_storage, MultiToken,
 };
-use near_account::{impl_near_accounts_plugin, Account, AccountDeposits, Accounts, NewInfo};
+use near_account::{
+    impl_near_accounts_plugin, Account, AccountDeposits, Accounts, NearAccountPlugin,
+    NearAccountsPluginNonExternal, NewInfo,
+};
 use near_internal_balances_plugin::impl_near_balance_plugin;
 
 use near_contract_standards::storage_management::StorageManagement as _StorageManagement;
@@ -156,6 +159,6 @@ impl NftFractionalizerFns for Contract {
     }
 
     fn nft_fractionalize_update_mint_fee(&mut self, update: U128) {
-        todo!()
+        self.nft_fractionalize_update_mint_fee_internal(update);
     }
 }

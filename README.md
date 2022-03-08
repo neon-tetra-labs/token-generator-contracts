@@ -1,4 +1,14 @@
-Token Fractionalization and Sales
+# Token Fractionalizing and Subsequent Sales
+
+The following smart contract found in the `contract` directory. The main
+purpose of the smart contract is to allow users to fractionalize a set of NFTs
+and subsequently sell them with a simple sales model.
+
+The fractionalize component basically means that a user can deposit some number of NFTs into a contract, the contract then locks up those NFTs and mints some number of Multi-Tokens (see the new [Multi Token proposal](https://github.com/near/NEPs/issues/246)). In order to redeem the NFTs, a caller has to burn all
+the supply of a fraction.
+
+
+
 ===================
 
 Example implementation of a [Fungible Token] contract which uses [near-contract-standards] and [simulation] tests. This is a contract-only example.

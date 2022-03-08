@@ -26,6 +26,8 @@ pub struct InitRet {
 pub const CONTRACT_ID: &str = "dummy";
 pub const NFT_ID: &str = "nft";
 
+pub const INIT_USER_BAL_NEAR: &str = "100";
+
 pub fn get_default_metadata() -> MultiTokenMetadata {
     multi_token_standard::metadata::MultiTokenMetadata {
         spec: "aa".to_string(),   // required, essentially a version like "mt-1.0.0"

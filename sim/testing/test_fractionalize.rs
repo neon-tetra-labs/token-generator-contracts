@@ -1,9 +1,10 @@
 use std::convert::TryFrom;
 
-use contract::sales::SaleOptions;
+use contract::sales::{SaleOptions, SaleOptionsSerial};
 use contract::types::MTTokenId;
 use contract::FEE_DENOMINATOR;
 use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds};
+use near_sdk::env;
 use near_sdk::json_types::U128;
 use near_sdk::serde::{self, Deserialize, Serialize};
 use near_sdk::serde_json::json;
@@ -14,7 +15,7 @@ use near_internal_balances_plugin::TokenId;
 use crate::testing::utils::{init_with_macros as init, register_user};
 use crate::testing::InitRet;
 
-use super::get_default_metadata;
+use super::{get_default_metadata, INIT_USER_BAL_NEAR};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -30,6 +31,7 @@ const SUPPLY: u128 = 1_000_000_000_000_000;
 fn init_with_fractionalize_nfts(
     sale_amount_whole: Option<U128>,
     sale_price_per_whole: Option<U128>,
+    amount_frac_attach: Option<u128>,
 ) -> (InitRet, Vec<TokenId>, MTTokenId) {
     let nfts = vec!["nft_1".to_string(), "nft_2".to_string()];
     let InitRet { alice, root, nft, contract } =
@@ -76,7 +78,8 @@ fn init_with_fractionalize_nfts(
             sale_amount_whole,
             sale_price_per_whole
         ),
-        deposit = NFT_MINT_FEE + near_sdk::env::storage_byte_cost() * 1_000
+        deposit =
+            amount_frac_attach.unwrap_or(NFT_MINT_FEE + near_sdk::env::storage_byte_cost() * 1_000)
     )
     .assert_success();
     let bal_post_frac: U128 =
@@ -95,7 +98,7 @@ fn init_with_fractionalize_nfts(
 #[test]
 fn simulate_simple_fractionalization() {
     let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
-        init_with_fractionalize_nfts(None, None);
+        init_with_fractionalize_nfts(None, None, None);
     call!(root, contract.nft_fractionalize_unwrap(mt_id.clone(), None), deposit = 1)
         .assert_success();
     for nft_tok in &nfts_tok_ids {
@@ -115,7 +118,11 @@ fn simulate_nft_frac_sale() {
     let whole_to_buy = 10;
     let sale_price_whole = 100;
     let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
-        init_with_fractionalize_nfts(Some(sale_amount_whole.into()), Some(sale_price_whole.into()));
+        init_with_fractionalize_nfts(
+            Some(sale_amount_whole.into()),
+            Some(sale_price_whole.into()),
+            None,
+        );
     let treasury = alice.account_id();
 
     let bal_init_sale: U128 =
@@ -135,7 +142,14 @@ fn simulate_nft_frac_sale() {
         sold: 0,
         owner: root.account_id(),
     };
-    let sale_info: SaleOptions = view!(contract.sale_info(mt_id.clone())).unwrap_json();
+    let sale_info_serial: SaleOptionsSerial =
+        view!(contract.sale_info(mt_id.clone())).unwrap_json();
+    let sale_info = SaleOptions {
+        amount_to_sell: sale_info_serial.amount_to_sell.0,
+        near_price_per_token: sale_info_serial.near_price_per_token.0,
+        sold: sale_info_serial.sold.0,
+        owner: sale_info_serial.owner.clone(),
+    };
 
     assert_eq!(&desired_opts, &sale_info);
 
@@ -160,13 +174,22 @@ fn simulate_nft_frac_sale() {
     )
     .assert_success();
 
-    let sale_info: SaleOptions = view!(contract.sale_info(mt_id.clone())).unwrap_json();
-    desired_opts.sold +=  whole_to_buy;
+    let sale_info_serial: SaleOptionsSerial =
+        view!(contract.sale_info(mt_id.clone())).unwrap_json();
+
+    let sale_info = SaleOptions {
+        amount_to_sell: sale_info_serial.amount_to_sell.0,
+        near_price_per_token: sale_info_serial.near_price_per_token.0,
+        sold: sale_info_serial.sold.0,
+        owner: sale_info_serial.owner.clone(),
+    };
+
+    desired_opts.sold += whole_to_buy;
     assert_eq!(desired_opts, sale_info);
 
     let bal_post_sale_contract: U128 =
         view!(contract.balance_of(contract.account_id(), mt_id.clone())).unwrap_json();
-    assert_eq!(bal_post_sale_contract.0, (sale_amount_whole - whole_to_buy) );
+    assert_eq!(bal_post_sale_contract.0, (sale_amount_whole - whole_to_buy));
 
     let bal_post_sale_alice: U128 =
         view!(contract.balance_of(alice.account_id(), mt_id.clone())).unwrap_json();
@@ -193,12 +216,35 @@ fn simulate_nft_frac_sale() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(
+    expected = "Must attach 9090000000000001000000 yoctoNEAR to cover storage and/or fees"
+)]
 fn simulate_fractionalize_not_enough_attached() {
-    todo!()
+    let sale_amount_whole = 100;
+    let whole_to_buy = 10;
+    let sale_price_whole = 100;
+    let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
+        init_with_fractionalize_nfts(
+            Some(sale_amount_whole.into()),
+            Some(sale_price_whole.into()),
+            Some(0),
+        );
+    let treasury = alice.account_id();
 }
 
 #[test]
 fn simulate_fractionalize_too_much_attached_and_returns() {
-    todo!()
+    let sale_amount_whole = 100;
+    let whole_to_buy = 10;
+    let sale_price_whole = 100;
+    let amount_attached = to_yocto("2");
+    let (InitRet { alice, root, nft, contract }, nfts_tok_ids, mt_id) =
+        init_with_fractionalize_nfts(
+            Some(sale_amount_whole.into()),
+            Some(sale_price_whole.into()),
+            Some(amount_attached),
+        );
+    let alice_init_bal = to_yocto(INIT_USER_BAL_NEAR);
+    let near_bal = alice.account().unwrap().amount;
+    assert!(alice_init_bal - near_bal < to_yocto("2"))
 }
