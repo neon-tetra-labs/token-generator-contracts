@@ -1,4 +1,5 @@
 use multi_token_standard::{metadata::MultiTokenMetadata, TokenType};
+use near_account::NearAccountsPluginNonExternal;
 use near_sdk::{env, require, AccountId, Balance, Promise};
 use uint::construct_uint;
 
@@ -27,7 +28,7 @@ impl Contract {
             .get_account(to)
             .unwrap_or_else(|| panic!("Expected {} to be registered", to.as_str()));
         to_account.near_amount += amount;
-        self.accounts.insert_account_check_storage(&to, &mut to_account);
+        near_account::NearAccountsPluginNonExternal::insert_account_check_storage(&mut self.accounts, &to, &mut to_account);
     }
 
     pub(crate) fn calculate_fee(amount: Balance, fee_numerator: u128) -> Balance {
@@ -116,7 +117,7 @@ impl Contract {
         let attached_deposit = env::attached_deposit();
         assert!(
             required_cost <= attached_deposit,
-            "Must attach {} yoctoNEAR to cover storage",
+            "Must attach {} yoctoNEAR to cover storage and/or fees",
             required_cost,
         );
         let refund = attached_deposit - required_cost;

@@ -109,9 +109,13 @@ impl Contract {
         &mut self,
         token_id: TokenId,
         receiver_id: AccountId,
-        token_metadata: TokenMetadata,
+        token_metadata: Option<TokenMetadata>,
     ) -> Token {
-        self.tokens.internal_mint(token_id, receiver_id, Some(token_metadata))
+        self.tokens.internal_mint(
+            token_id,
+            receiver_id,
+            Some(token_metadata.unwrap_or(DEFAULT_META)),
+        )
     }
 }
 
@@ -128,6 +132,8 @@ impl NonFungibleTokenMetadataProvider for Contract {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
+    use std::collections::HashMap;
+
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
 
@@ -191,9 +197,9 @@ mod tests {
             .build());
 
         let token_id = "0".to_string();
-        let token = contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+        let token = contract.nft_mint(token_id.clone(), accounts(0), Some(sample_token_metadata()));
         assert_eq!(token.token_id, token_id);
-        assert_eq!(token.owner_id, accounts(0).to_string());
+        assert_eq!(token.owner_id.to_string(), accounts(0).to_string());
         assert_eq!(token.metadata.unwrap(), sample_token_metadata());
         assert_eq!(token.approved_account_ids.unwrap(), HashMap::new());
     }
@@ -210,7 +216,7 @@ mod tests {
             .predecessor_account_id(accounts(0))
             .build());
         let token_id = "0".to_string();
-        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+        contract.nft_mint(token_id.clone(), accounts(0), Some(sample_token_metadata()));
 
         testing_env!(context
             .storage_usage(env::storage_usage())
@@ -227,8 +233,8 @@ mod tests {
             .build());
         if let Some(token) = contract.nft_token(token_id.clone()) {
             assert_eq!(token.token_id, token_id);
-            assert_eq!(token.owner_id, accounts(1).to_string());
-            assert_eq!(token.metadata.unwrap(), sample_token_metadata());
+            assert_eq!(token.owner_id, accounts(1));
+            assert_eq!(token.metadata.unwrap(), (sample_token_metadata()));
             assert_eq!(token.approved_account_ids.unwrap(), HashMap::new());
         } else {
             panic!("token not correctly created, or not found by nft_token");
@@ -247,7 +253,7 @@ mod tests {
             .predecessor_account_id(accounts(0))
             .build());
         let token_id = "0".to_string();
-        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+        contract.nft_mint(token_id.clone(), accounts(0), Some(sample_token_metadata()));
 
         // alice approves bob
         testing_env!(context
@@ -278,7 +284,7 @@ mod tests {
             .predecessor_account_id(accounts(0))
             .build());
         let token_id = "0".to_string();
-        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+        contract.nft_mint(token_id.clone(), accounts(0), Some(sample_token_metadata()));
 
         // alice approves bob
         testing_env!(context
@@ -316,7 +322,7 @@ mod tests {
             .predecessor_account_id(accounts(0))
             .build());
         let token_id = "0".to_string();
-        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+        contract.nft_mint(token_id.clone(), accounts(0), Some(sample_token_metadata()));
 
         // alice approves bob
         testing_env!(context

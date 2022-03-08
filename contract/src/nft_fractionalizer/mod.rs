@@ -27,7 +27,6 @@ pub struct NftInfo {
 }
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct NftFractionalizer {
-    // TODO: add one field for
     mt_to_nfts: UnorderedMap<MTTokenId, NftInfo>,
     mint_fee: u128,
 }
@@ -177,6 +176,11 @@ impl Contract {
         mt_id: MTTokenId,
     ) -> Vec<TokenId> {
         self.nft_fractionalizer.mt_to_nfts.get(&mt_id).expect("The queried mt does not exist").nfts
+    }
+
+    pub(crate) fn nft_fractionalize_update_mint_fee_internal(&mut self, update: U128) {
+        assert_eq!(self.owner_id, env::predecessor_account_id(), "Caller must be the owner");
+        self.nft_fractionalizer.mint_fee = update.0;
     }
 
     fn assert_nft_type(token: &TokenId) {

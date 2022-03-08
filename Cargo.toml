@@ -1,7 +1,7 @@
 [package]
-name = "fungible-token-wrapper"
+name = "token-generator-wrapper"
 version = "0.0.1"
-authors = ["Near Inc <hello@near.org>"]
+authors = ["Atilla not a hun <atilla_not_a_hun@protonmail.com>"]
 edition = "2018"
 
 [dev-dependencies]
@@ -12,10 +12,9 @@ near-contract-standards = "4.0.0-pre.2"
 # remember to include a line for each contract
 contract = { path = "./contract" }
 nft = { path = "./nft" }
-# multi-token = { path = "../multi-token-standard-impl/examples/multi-token/mt" }
 multi-token-standard = { path = "./multi-token-standard-impl/multi_token" }
-near-internal-balances-plugin = { path = "../../near-standards/core/near-internal-balances-plugin" }
-near-account = { path = "../../near-standards/core/near-account" }
+near-account = "0.1.2"
+near-internal-balances-plugin = "0.1.0"
 
 
 [profile.release]

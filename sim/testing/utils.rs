@@ -26,6 +26,8 @@ pub struct InitRet {
 pub const CONTRACT_ID: &str = "dummy";
 pub const NFT_ID: &str = "nft";
 
+pub const INIT_USER_BAL_NEAR: &str = "100";
+
 pub fn get_default_metadata() -> MultiTokenMetadata {
     multi_token_standard::metadata::MultiTokenMetadata {
         spec: "aa".to_string(),   // required, essentially a version like "mt-1.0.0"
@@ -49,18 +51,6 @@ pub fn get_default_metadata() -> MultiTokenMetadata {
     }
 }
 
-pub fn register_user_with_mt(
-    user: UserAccount,
-    contract: ContractAccount<ContractContract>,
-    mt_ids: Vec<String>,
-) {
-    call!(
-        user,
-        contract.storage_deposit(mt_ids, None, None),
-        deposit = near_sdk::env::storage_byte_cost() * 1_000
-    )
-    .assert_success();
-}
 
 // Register the given `user` with NFT contract and the contract
 pub fn register_user(user: &near_sdk_sim::UserAccount) {
@@ -111,7 +101,7 @@ pub fn init_with_macros(nfts_to_mint: Vec<String>, nft_mint_fee: u128, sale_fee:
     for nft_id in nfts_to_mint {
         call!(
             root,
-            nft.nft_mint(nft_id, root.account_id(), DEFAULT_META),
+            nft.nft_mint(nft_id, root.account_id(), Some(DEFAULT_META)),
             deposit = near_sdk::env::storage_byte_cost() * 1_000
         )
         .assert_success();
